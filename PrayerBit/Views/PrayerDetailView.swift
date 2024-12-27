@@ -1,6 +1,6 @@
 //
 //  PrayerDetailView.swift
-//  test2
+//  PrayerBit
 //
 //  Created by kale on 12/25/24.
 //
@@ -21,9 +21,11 @@ struct PrayerDetailView: View {
             if let creationDate = prayer.creationDate {
                 Text("Created: \(creationDate, style: .date)")
             }
+             */
             
             if let lastModifiedDate = prayer.lastModifiedDate {
                 Text("Last Modified: \(lastModifiedDate, style: .date)")
+                
             }
             
             
@@ -31,12 +33,12 @@ struct PrayerDetailView: View {
             
             Text("Requests for this Prayer:")
                 .font(.subheadline)
-             */
+             
             // Because prayer.requests is an NSSet or optional, we need to typecast and perhaps sort it.
             if let requestsSet = prayer.requests as? Set<RequestEntity> {
                 // You might want a custom sort by creationDate:
                 let requestsArray = requestsSet.sorted {
-                    ($0.creationDate ?? Date()) < ($1.creationDate ?? Date())
+                    ($0.lastModifiedDate ?? Date()) < ($1.lastModifiedDate ?? Date())
                 }
                 
                 ForEach(requestsArray, id: \.self) { request in

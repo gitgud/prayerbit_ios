@@ -1,6 +1,6 @@
 //
 //  PrayerListView.swift
-//  test2
+//  PrayerBit
 //
 //  Created by kale on 12/25/24.
 //
@@ -12,7 +12,7 @@ struct PrayerListView: View {
     @Environment(\.managedObjectContext) private var viewContext
     
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \PrayerEntity.creationDate, ascending: false)],
+        sortDescriptors: [NSSortDescriptor(keyPath: \PrayerEntity.lastModifiedDate, ascending: false)],
         animation: .default
     )
     private var prayers: FetchedResults<PrayerEntity>
