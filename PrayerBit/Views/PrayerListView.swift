@@ -15,7 +15,9 @@ struct PrayerListView: View {
         sortDescriptors: [NSSortDescriptor(keyPath: \PrayerEntity.lastModifiedDate, ascending: false)],
         animation: .default
     )
+    
     private var prayers: FetchedResults<PrayerEntity>
+    
 
     var body: some View {
         NavigationView {

@@ -11,50 +11,48 @@ import CoreData
 
 struct PrayerDetailView: View {
     @ObservedObject var prayer: PrayerEntity
-
+    
+    // A FetchRequest that fetches only those RequestEntities
+    // where prayer == the provided `prayer`
+    @FetchRequest private var requests: FetchedResults<RequestEntity>
+    
+    init(prayer: PrayerEntity) {
+        self.prayer = prayer
+        
+        // Build a predicate to filter RequestEntities that belong to this specific PrayerEntity
+        let predicate = NSPredicate(format: "prayer == %@", prayer)
+        
+        // You can customize the sort order here (e.g., by creationDate)
+        _requests = FetchRequest<RequestEntity>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \RequestEntity.creationDate, ascending: false)],
+            predicate: predicate,
+            animation: .default
+        )
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Prayer Title: \(prayer.title ?? "Untitled")")
                 .font(.headline)
             
-            /*
-            if let creationDate = prayer.creationDate {
-                Text("Created: \(creationDate, style: .date)")
-            }
-             */
-            
-            if let lastModifiedDate = prayer.lastModifiedDate {
-                Text("Last Modified: \(lastModifiedDate, style: .date)")
-                
-            }
-            
-            
             Divider()
             
             Text("Requests for this Prayer:")
                 .font(.subheadline)
-             
-            // Because prayer.requests is an NSSet or optional, we need to typecast and perhaps sort it.
-            if let requestsSet = prayer.requests as? Set<RequestEntity> {
-                // You might want a custom sort by creationDate:
-                let requestsArray = requestsSet.sorted {
-                    ($0.lastModifiedDate ?? Date()) < ($1.lastModifiedDate ?? Date())
-                }
-                
-                ForEach(requestsArray, id: \.self) { request in
-                    Text(request.request ?? "Untitled Request")
-                }
-            } else {
+            
+            if requests.isEmpty {
                 Text("No requests yet.")
                     .foregroundColor(.secondary)
+            } else {
+                ForEach(requests, id: \.self) { request in
+                    Text(request.request ?? "Untitled Request")
+                }
             }
         }
         .padding()
         .navigationTitle("Prayer Details")
     }
 }
-
-
 
 struct PrayerDetailView_Previews: PreviewProvider {
     static var previews: some View {

@@ -9,42 +9,38 @@
 import SwiftUI
 import CoreData
 
+
 struct RequestListView: View {
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \RequestEntity.creationDate, ascending: false)],
-        animation: .default
-    )
-    private var requests: FetchedResults<RequestEntity>
+    // The parent prayer for which we want to show requests
+    var prayer: PrayerEntity
+
+    // A fetch request specifically for RequestEntity, filtered by the parent
+    @FetchRequest private var requests: FetchedResults<RequestEntity>
+
+    // Custom initializer to set up the fetch request with a predicate
+    init(prayer: PrayerEntity) {
+        // This predicate means: "fetch all RequestEntity where prayer == this specific PrayerEntity"
+        let predicate = NSPredicate(format: "prayer == %@", prayer)
+
+        // Sort by lastModifiedDate descending, or creationDate ascending—your choice
+        _requests = FetchRequest<RequestEntity>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \RequestEntity.lastModifiedDate, ascending: false)],
+            predicate: predicate,
+            animation: .default
+        )
+
+        self.prayer = prayer
+    }
 
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(requests, id: \.self) { request in
-                    NavigationLink(destination: RequestDetailView(request: request)) {
-                        Text(request.request ?? "Untitled Request")
-
-                    }
-                }
+        List {
+            ForEach(requests, id: \.self) { request in
+                // Show each request’s text, or a textfield if we want inline editing
+                Text(request.request ?? "Untitled Request")
             }
         }
+        .navigationTitle("Requests for \(prayer.title ?? "")")
     }
 }
 
-struct RequestListView_Previews: PreviewProvider {
-    static var previews: some View {
-        let controller = PersistenceController(inMemory: true)
-        let context = controller.container.viewContext
 
-        // Insert test data
-        for i in 1...3 {
-            let newRequest = RequestEntity(context: context)
-            newRequest.id = UUID()
-            newRequest.request = "Request #\(i)"
-            newRequest.creationDate = Date().addingTimeInterval(Double(-i) * 86400)
-            newRequest.lastModifiedDate = Date()
-        }
-
-        return RequestListView()
-            .environment(\.managedObjectContext, context)
-    }
-}
