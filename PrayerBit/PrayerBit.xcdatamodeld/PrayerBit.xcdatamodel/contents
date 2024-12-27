@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23507" systemVersion="23G93" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="PassageEntity" representedClassName="RequestEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="creationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastModifiedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="request" optional="YES" attributeType="String"/>
+        <relationship name="passagePrayer" maxCount="1" deletionRule="Nullify" destinationEntity="PrayerEntity" inverseName="prayerPassage" inverseEntity="PrayerEntity"/>
+    </entity>
+    <entity name="PrayerEntity" representedClassName="PrayerEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="creationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastModifiedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <relationship name="prayerPassage" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="PassageEntity" inverseName="passagePrayer" inverseEntity="PassageEntity"/>
+        <relationship name="requests" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="RequestEntity" inverseName="prayer" inverseEntity="RequestEntity"/>
+    </entity>
+    <entity name="RequestEntity" representedClassName="RequestEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="creationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastModifiedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="request" optional="YES" attributeType="String"/>
+        <relationship name="prayer" maxCount="1" deletionRule="Nullify" destinationEntity="PrayerEntity" inverseName="requests" inverseEntity="PrayerEntity"/>
+    </entity>
+</model>
