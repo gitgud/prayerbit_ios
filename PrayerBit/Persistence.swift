@@ -1,3 +1,10 @@
+//
+//  Persistence.swift
+//  PrayerBit
+//
+//  Created by kale on 12/26/24.
+//
+
 import CoreData
 
 struct PersistenceController {
@@ -6,7 +13,7 @@ struct PersistenceController {
     let container: NSPersistentContainer
 
     init(inMemory: Bool = false) {
-        container = NSPersistentContainer(name: "test2")  // match your .xcdatamodeld filename
+        container = NSPersistentContainer(name: "PrayerBit")  // match your .xcdatamodeld filename
 
         if inMemory {
             container.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")

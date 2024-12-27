@@ -1,14 +1,15 @@
 //
-//  test2App.swift
-//  test2
+//  PrayerBitApp.swift
+//  PrayerBit
 //
-//  Created by kale on 12/24/24.
+//  Created by kale on 12/26/24.
 //
+
 
 import SwiftUI
 
 @main
-struct test2App: App {
+struct PrayerBitApp: App {
     let persistenceController = PersistenceController.shared
 
     var body: some Scene {

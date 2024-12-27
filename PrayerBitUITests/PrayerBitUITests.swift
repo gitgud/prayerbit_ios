@@ -1,13 +1,13 @@
 //
-//  test2UITests.swift
-//  test2UITests
+//  PrayerBitUITests.swift
+//  PrayerBitUITests
 //
-//  Created by kale on 12/24/24.
+//  Created by kale on 12/26/24.
 //
 
 import XCTest
 
-final class test2UITests: XCTestCase {
+final class PrayerBitUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

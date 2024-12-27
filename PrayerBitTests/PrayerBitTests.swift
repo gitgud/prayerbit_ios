@@ -1,14 +1,14 @@
 //
-//  test2Tests.swift
-//  test2Tests
+//  PrayerBitTests.swift
+//  PrayerBitTests
 //
-//  Created by kale on 12/24/24.
+//  Created by kale on 12/26/24.
 //
 
 import Testing
-@testable import test2
+@testable import PrayerBit
 
-struct test2Tests {
+struct PrayerBitTests {
 
     @Test func example() async throws {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.
