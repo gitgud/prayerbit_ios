@@ -1,13 +1,13 @@
 //
-//  PrayerBitUITestsLaunchTests.swift
-//  PrayerBitUITests
+//  test2UITestsLaunchTests.swift
+//  test2UITests
 //
-//  Created by kale on 12/17/24.
+//  Created by kale on 12/24/24.
 //
 
 import XCTest
 
-final class PrayerBitUITestsLaunchTests: XCTestCase {
+final class test2UITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true
