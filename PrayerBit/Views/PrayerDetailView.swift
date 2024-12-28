@@ -16,6 +16,10 @@ struct PrayerDetailView: View {
     // where prayer == the provided `prayer`
     @FetchRequest private var requests: FetchedResults<RequestEntity>
     
+    @FetchRequest private var passages: FetchedResults<PassageEntity>
+    
+    // You can customize the sort order here (e.g., by creationDate)
+
     init(prayer: PrayerEntity) {
         self.prayer = prayer
         
@@ -23,11 +27,21 @@ struct PrayerDetailView: View {
         let predicate = NSPredicate(format: "prayer == %@", prayer)
         
         // You can customize the sort order here (e.g., by creationDate)
+        
         _requests = FetchRequest<RequestEntity>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \RequestEntity.creationDate, ascending: false)],
+            sortDescriptors: [NSSortDescriptor(keyPath: \RequestEntity.lastModifiedDate, ascending: false)],
             predicate: predicate,
             animation: .default
         )
+        
+        // You can customize the sort order here (e.g., by creationDate)
+        _passages = FetchRequest<PassageEntity>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \PassageEntity.lastModifiedDate, ascending: false)],
+            predicate: predicate,
+            animation: .default
+        )
+        
+        
     }
     
     var body: some View {
@@ -36,9 +50,16 @@ struct PrayerDetailView: View {
                 .font(.headline)
             
             Divider()
-            
-            Text("Requests for this Prayer:")
-                .font(.subheadline)
+            if passages.isEmpty {
+                Text("No passages yet.")
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(passages, id: \.self) { passage in
+                    Text(passage.passage ?? "Untitled Request")
+                }
+            }
+             
+            Divider()
             
             if requests.isEmpty {
                 Text("No requests yet.")
@@ -48,6 +69,7 @@ struct PrayerDetailView: View {
                     Text(request.request ?? "Untitled Request")
                 }
             }
+
         }
         .padding()
         .navigationTitle("Prayer Details")

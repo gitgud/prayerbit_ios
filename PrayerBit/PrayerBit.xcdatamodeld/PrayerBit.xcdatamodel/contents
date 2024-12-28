@@ -5,14 +5,14 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="lastModifiedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="passage" optional="YES" attributeType="String"/>
-        <relationship name="passagePrayer" maxCount="1" deletionRule="Nullify" destinationEntity="PrayerEntity" inverseName="prayerPassage" inverseEntity="PrayerEntity"/>
+        <relationship name="prayer" maxCount="1" deletionRule="Nullify" destinationEntity="PrayerEntity" inverseName="passage" inverseEntity="PrayerEntity"/>
     </entity>
     <entity name="PrayerEntity" representedClassName="PrayerEntity" syncable="YES" codeGenerationType="class">
         <attribute name="creationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="lastModifiedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="title" optional="YES" attributeType="String"/>
-        <relationship name="prayerPassage" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="PassageEntity" inverseName="passagePrayer" inverseEntity="PassageEntity"/>
+        <relationship name="passage" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="PassageEntity" inverseName="prayer" inverseEntity="PassageEntity"/>
         <relationship name="requests" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="RequestEntity" inverseName="prayer" inverseEntity="RequestEntity"/>
     </entity>
     <entity name="RequestEntity" representedClassName="RequestEntity" syncable="YES" codeGenerationType="class">
