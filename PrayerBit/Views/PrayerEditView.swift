@@ -5,6 +5,7 @@
 //  Created by kale on 12/25/24.
 //
 
+
 import SwiftUI
 import CoreData
 
@@ -18,6 +19,10 @@ struct PrayerEditView: View {
     // Stores the NSManagedObjectID of whichever request is currently focused
     @FocusState private var focusedRequestID: NSManagedObjectID?
     
+    // MARK: Focus State for Passages
+    // Stores the NSManagedObjectID of whichever passage is currently focused
+    @FocusState private var focusedPassageID: NSManagedObjectID?
+
     var body: some View {
         Form {
             // MARK: - Prayer Section
@@ -30,6 +35,33 @@ struct PrayerEditView: View {
                         saveContext()
                     }
                 ))
+            }
+            
+            // MARK: - Passages Section
+            Section(header: Text("Passages")) {
+                let passagesArray = sortedPassages()
+                
+                ForEach(passagesArray, id: \.objectID) { passage in
+                    TextField(
+                        "Passage",
+                        text: Binding(
+                            get: { passage.passage ?? "" },
+                            set: { newValue in
+                                passage.passage = newValue
+                                passage.lastModifiedDate = Date()
+                                prayer.lastModifiedDate = Date()
+                                saveContext()
+                            }
+                        )
+                    )
+                    // Tie this specific TextField's focus to the passage's `objectID`
+                    .focused($focusedPassageID, equals: passage.objectID)
+                }
+                
+                // Add Passage inline
+                Button(action: addNewPassage) {
+                    Label("Add Passage", systemImage: "plus.circle")
+                }
             }
             
             // MARK: - Requests Section
@@ -61,10 +93,18 @@ struct PrayerEditView: View {
         }
         .navigationTitle("Edit Prayer")
         .toolbar {
-            // The Delete button should appear if we currently have a focused request
-            if let currentRequest = currentFocusedRequest() {
+            // If there's a currently focused passage, show a "Delete" button for that passage
+            if let currentPassage = currentFocusedPassage() {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Delete") {
+                    Button("Delete Passage") {
+                        deletePassage(currentPassage)
+                    }
+                }
+            }
+            // Else if there's a currently focused request, show a "Delete" button for that request
+            else if let currentRequest = currentFocusedRequest() {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Delete Request") {
                         deleteRequest(currentRequest)
                     }
                 }
@@ -72,7 +112,50 @@ struct PrayerEditView: View {
         }
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Passages Helpers
+    
+    private func sortedPassages() -> [PassageEntity] {
+        guard let passagesSet = prayer.passage as? Set<PassageEntity> else {
+            return []
+        }
+        return passagesSet.sorted {
+            ($0.creationDate ?? Date()) < ($1.creationDate ?? Date())
+        }
+    }
+    
+    private func addNewPassage() {
+        let newPassage = PassageEntity(context: viewContext)
+        newPassage.id = UUID()
+        newPassage.passage = "New Passage"
+        newPassage.creationDate = Date()
+        newPassage.lastModifiedDate = Date()
+        newPassage.prayer = prayer  // Link to parent prayer
+
+        prayer.lastModifiedDate = Date()
+        
+        saveContext()
+        
+        // Optionally focus the new passage right away
+        focusedPassageID = newPassage.objectID
+    }
+    
+    private func currentFocusedPassage() -> PassageEntity? {
+        guard let focusedID = focusedPassageID else { return nil }
+        
+        let passagesArray = sortedPassages()
+        return passagesArray.first(where: { $0.objectID == focusedID })
+    }
+    
+    private func deletePassage(_ passage: PassageEntity) {
+        viewContext.delete(passage)
+        focusedPassageID = nil  // Clear focus so we hide the delete button
+
+        prayer.lastModifiedDate = Date()
+        
+        saveContext()
+    }
+    
+    // MARK: - Requests Helpers
     
     private func sortedRequests() -> [RequestEntity] {
         guard let requestsSet = prayer.requests as? Set<RequestEntity> else {
@@ -93,35 +176,30 @@ struct PrayerEditView: View {
         
         prayer.lastModifiedDate = Date()
         
-        // Save so it appears in the list
         saveContext()
         
-        // Focus the new request after creation (if desired):
+        // Focus the new request after creation
         focusedRequestID = newRequest.objectID
     }
     
-    /// Identify the RequestEntity that is currently focused, if any
     private func currentFocusedRequest() -> RequestEntity? {
         guard let focusedID = focusedRequestID else { return nil }
         
-        // Look up which request has that objectID
         let requestsArray = sortedRequests()
         return requestsArray.first(where: { $0.objectID == focusedID })
     }
     
     private func deleteRequest(_ request: RequestEntity) {
-        // Delete the request from the context
         viewContext.delete(request)
-        
-        // Clear focus so we don't show the delete button
-        focusedRequestID = nil
-        
-        // Update the parent prayer so SwiftUI sees a change
+        focusedRequestID = nil  // Clear focus so we hide the delete button
+
         prayer.lastModifiedDate = Date()
         
         saveContext()
     }
     
+    // MARK: - Core Data Save
+
     private func saveContext() {
         do {
             try viewContext.save()
@@ -130,3 +208,4 @@ struct PrayerEditView: View {
         }
     }
 }
+

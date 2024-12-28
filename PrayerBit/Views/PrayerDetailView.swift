@@ -46,7 +46,7 @@ struct PrayerDetailView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Prayer Title: \(prayer.title ?? "Untitled")")
+            Text("\(prayer.title ?? "")")
                 .font(.headline)
             
             Divider()
