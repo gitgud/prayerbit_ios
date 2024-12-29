@@ -5,28 +5,22 @@
 //  Created by kale on 12/25/24.
 //
 
-
 import SwiftUI
 import CoreData
 
 struct PrayerEditView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.presentationMode) private var presentationMode
     
     @ObservedObject var prayer: PrayerEntity
     
-    // MARK: Focus State for Requests
-    // Stores the NSManagedObjectID of whichever request is currently focused
+    // Focus states for inline editing
     @FocusState private var focusedRequestID: NSManagedObjectID?
-    
-    // MARK: Focus State for Passages
-    // Stores the NSManagedObjectID of whichever passage is currently focused
-    @FocusState private var focusedPassageID: NSManagedObjectID?
+    @FocusState private var focusedTagID: NSManagedObjectID?
 
     var body: some View {
         Form {
-            // MARK: - Prayer Section
-            Section(header: Text("Prayer")) {
+            // MARK: - Prayer
+            Section("Prayer") {
                 TextField("Title", text: Binding(
                     get: { prayer.title ?? "" },
                     set: { newValue in
@@ -37,71 +31,60 @@ struct PrayerEditView: View {
                 ))
             }
             
-            // MARK: - Passages Section
-            Section(header: Text("Passages")) {
-                let passagesArray = sortedPassages()
-                
-                ForEach(passagesArray, id: \.objectID) { passage in
-                    TextField(
-                        "Passage",
-                        text: Binding(
-                            get: { passage.passage ?? "" },
-                            set: { newValue in
-                                passage.passage = newValue
-                                passage.lastModifiedDate = Date()
-                                prayer.lastModifiedDate = Date()
-                                saveContext()
-                            }
-                        )
-                    )
-                    // Tie this specific TextField's focus to the passage's `objectID`
-                    .focused($focusedPassageID, equals: passage.objectID)
-                }
-                
-                // Add Passage inline
-                Button(action: addNewPassage) {
-                    Label("Add Passage", systemImage: "plus.circle")
-                }
-            }
-            
-            // MARK: - Requests Section
-            Section(header: Text("Requests")) {
+            // MARK: - Requests (unchanged from your code)
+            Section("Requests") {
                 let requestsArray = sortedRequests()
-                
-                ForEach(requestsArray, id: \.objectID) { request in
-                    TextField(
-                        "Request",
+                ForEach(requestsArray, id: \.objectID) { req in
+                    TextField("Request",
                         text: Binding(
-                            get: { request.request ?? "" },
+                            get: { req.request ?? "" },
                             set: { newValue in
-                                request.request = newValue
-                                request.lastModifiedDate = Date()
+                                req.request = newValue
+                                req.lastModifiedDate = Date()
                                 prayer.lastModifiedDate = Date()
                                 saveContext()
                             }
                         )
                     )
-                    // Tie this specific TextField's focus to the request's `objectID`
-                    .focused($focusedRequestID, equals: request.objectID)
+                    .focused($focusedRequestID, equals: req.objectID)
                 }
                 
-                // Add Request inline
-                Button(action: addNewRequest) {
-                    Label("Add Request", systemImage: "plus.circle")
+                Button("Add Request", action: addNewRequest)
+            }
+
+            // MARK: - Tags
+            Section("Tags") {
+                let tagsArray = sortedTags()
+                ForEach(tagsArray, id: \.objectID) { tag in
+                    TextField("Tag",
+                        text: Binding(
+                            get: { tag.tag ?? "" },
+                            set: { newValue in
+                                tag.tag = newValue
+                                // If you have a lastModifiedDate in TagEntity, set it here:
+                                // tag.lastModifiedDate = Date()
+                                prayer.lastModifiedDate = Date()
+                                saveContext()
+                            }
+                        )
+                    )
+                    .focused($focusedTagID, equals: tag.objectID)
                 }
+                
+                Button("Add Tag", action: addNewTag)
             }
         }
         .navigationTitle("Edit Prayer")
         .toolbar {
-            // If there's a currently focused passage, show a "Delete" button for that passage
-            if let currentPassage = currentFocusedPassage() {
+            // 1) If a tag is currently focused, show "Delete Tag" button
+            if let currentTag = currentFocusedTag() {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Delete Passage") {
-                        deletePassage(currentPassage)
+                    Button("Delete Tag") {
+                        deleteTag(currentTag)
                     }
                 }
             }
-            // Else if there's a currently focused request, show a "Delete" button for that request
+            // 2) Otherwise, if a request is currently focused, show "Delete Request" button
             else if let currentRequest = currentFocusedRequest() {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Delete Request") {
@@ -111,95 +94,114 @@ struct PrayerEditView: View {
             }
         }
     }
-    
-    // MARK: - Passages Helpers
-    
-    private func sortedPassages() -> [PassageEntity] {
-        guard let passagesSet = prayer.passage as? Set<PassageEntity> else {
-            return []
-        }
-        return passagesSet.sorted {
-            ($0.creationDate ?? Date()) < ($1.creationDate ?? Date())
-        }
-    }
-    
-    private func addNewPassage() {
-        let newPassage = PassageEntity(context: viewContext)
-        newPassage.id = UUID()
-        newPassage.passage = "New Passage"
-        newPassage.creationDate = Date()
-        newPassage.lastModifiedDate = Date()
-        newPassage.prayer = prayer  // Link to parent prayer
+}
 
-        prayer.lastModifiedDate = Date()
-        
-        saveContext()
-        
-        // Optionally focus the new passage right away
-        focusedPassageID = newPassage.objectID
-    }
-    
-    private func currentFocusedPassage() -> PassageEntity? {
-        guard let focusedID = focusedPassageID else { return nil }
-        
-        let passagesArray = sortedPassages()
-        return passagesArray.first(where: { $0.objectID == focusedID })
-    }
-    
-    private func deletePassage(_ passage: PassageEntity) {
-        viewContext.delete(passage)
-        focusedPassageID = nil  // Clear focus so we hide the delete button
-
-        prayer.lastModifiedDate = Date()
-        
-        saveContext()
-    }
-    
-    // MARK: - Requests Helpers
-    
+// MARK: - Helpers
+extension PrayerEditView {
+    // ---------- Requests ----------
     private func sortedRequests() -> [RequestEntity] {
-        guard let requestsSet = prayer.requests as? Set<RequestEntity> else {
-            return []
-        }
-        return requestsSet.sorted {
+        guard let requestSet = prayer.requests as? Set<RequestEntity> else { return [] }
+        return requestSet.sorted {
             ($0.creationDate ?? Date()) < ($1.creationDate ?? Date())
         }
     }
-    
+
     private func addNewRequest() {
-        let newRequest = RequestEntity(context: viewContext)
-        newRequest.id = UUID()
-        newRequest.request = "New Request"
-        newRequest.creationDate = Date()
-        newRequest.lastModifiedDate = Date()
-        newRequest.prayer = prayer
+        let newReq = RequestEntity(context: viewContext)
+        newReq.id = UUID()
+        newReq.request = "New Request"
+        newReq.creationDate = Date()
+        newReq.lastModifiedDate = Date()
         
+        // Link many-to-one
+        newReq.prayer = prayer
+
         prayer.lastModifiedDate = Date()
-        
         saveContext()
         
-        // Focus the new request after creation
-        focusedRequestID = newRequest.objectID
+        // Focus this new request
+        focusedRequestID = newReq.objectID
     }
     
     private func currentFocusedRequest() -> RequestEntity? {
-        guard let focusedID = focusedRequestID else { return nil }
-        
-        let requestsArray = sortedRequests()
-        return requestsArray.first(where: { $0.objectID == focusedID })
+        guard let id = focusedRequestID else { return nil }
+        return sortedRequests().first { $0.objectID == id }
     }
     
     private func deleteRequest(_ request: RequestEntity) {
         viewContext.delete(request)
-        focusedRequestID = nil  // Clear focus so we hide the delete button
-
+        focusedRequestID = nil
         prayer.lastModifiedDate = Date()
-        
         saveContext()
     }
     
-    // MARK: - Core Data Save
+    // ---------- Tags (MANY-TO-MANY) ----------
+    private func sortedTags() -> [TagEntity] {
+        // prayer.tags is typically an NSSet?
+        // Xcode auto-generates "public var tags: NSSet?" or "public var tags: Set<TagEntity>"
+        // Use the typed generated accessors if they exist, or cast if needed.
+        // e.g., if you have 'public var tags: Set<TagEntity>' in your generated code, just do `prayer.tags.sorted(by:)`.
+        
+        guard let tagSet = prayer.tags as? Set<TagEntity> else { return [] }
+        // Sort by some attribute, if you want:
+        // If TagEntity has creationDate, do something like:
+        //   return tagSet.sorted { ($0.creationDate ?? Date()) < ($1.creationDate ?? Date()) }
+        // Otherwise, sort by `tag` string lexically, or skip sorting:
+        
+        return tagSet.sorted { ($0.tag ?? "") < ($1.tag ?? "") }
+    }
+    
+    private func addNewTag() {
+        let newTag = TagEntity(context: viewContext)
+        newTag.id = UUID()
+        newTag.tag = "New Tag"
+        // If you have creationDate in TagEntity, set it:
+        // newTag.creationDate = Date()
+        
+        // Because it's a many-to-many, we can't do newTag.prayer = prayer (that's for a to-one).
+        // Instead, we can use the generated accessor:
+        // prayer.addToTags(newTag)
+        // Or newTag.addToPrayers(prayer)
+        // Either way updates both sides of the relationship.
+        
+        prayer.addToTags(newTag)
+        
+        prayer.lastModifiedDate = Date()
+        saveContext()
+        
+        // Focus the new tag
+        focusedTagID = newTag.objectID
+    }
 
+    private func currentFocusedTag() -> TagEntity? {
+        guard let id = focusedTagID else { return nil }
+        return sortedTags().first { $0.objectID == id }
+    }
+
+    private func deleteTag(_ tag: TagEntity) {
+        // Because it's many-to-many, we typically remove it from the prayer's set
+        // (and maybe from other prayers if it’s no longer needed).
+        // If you truly want to remove the Tag from the entire store, you can just delete it:
+        //   viewContext.delete(tag)
+        // But that might break other prayers that share this tag, so it depends on your design.
+        
+        // If each tag is used by multiple prayers, you might do:
+        //   prayer.removeFromTags(tag)
+        // so it’s no longer associated with just this prayer, but still around for other prayers.
+        // However, if your design means no tag is used for more than one prayer, go ahead and delete it from the context.
+        
+        // Example: remove it from just this prayer
+        prayer.removeFromTags(tag)
+        
+        // If you want to permanently remove it from the data store:
+        // viewContext.delete(tag)
+
+        focusedTagID = nil
+        prayer.lastModifiedDate = Date()
+        saveContext()
+    }
+    
+    // ---------- Save ----------
     private func saveContext() {
         do {
             try viewContext.save()
@@ -208,4 +210,3 @@ struct PrayerEditView: View {
         }
     }
 }
-
