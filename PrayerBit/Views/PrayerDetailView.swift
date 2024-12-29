@@ -5,7 +5,6 @@
 //  Created by kale on 12/25/24.
 //
 
-
 import SwiftUI
 import CoreData
 
@@ -16,17 +15,16 @@ struct PrayerDetailView: View {
     // where prayer == the provided `prayer`
     @FetchRequest private var requests: FetchedResults<RequestEntity>
     
+    // A FetchRequest that fetches only those PassageEntities
+    // where prayer == the provided `prayer`
     @FetchRequest private var passages: FetchedResults<PassageEntity>
     
-    // You can customize the sort order here (e.g., by creationDate)
-
+    // Initialize your fetch requests with a predicate for this prayer
     init(prayer: PrayerEntity) {
         self.prayer = prayer
         
-        // Build a predicate to filter RequestEntities that belong to this specific PrayerEntity
+        // Filter: "prayer == current prayer"
         let predicate = NSPredicate(format: "prayer == %@", prayer)
-        
-        // You can customize the sort order here (e.g., by creationDate)
         
         _requests = FetchRequest<RequestEntity>(
             sortDescriptors: [NSSortDescriptor(keyPath: \RequestEntity.lastModifiedDate, ascending: false)],
@@ -34,33 +32,35 @@ struct PrayerDetailView: View {
             animation: .default
         )
         
-        // You can customize the sort order here (e.g., by creationDate)
         _passages = FetchRequest<PassageEntity>(
             sortDescriptors: [NSSortDescriptor(keyPath: \PassageEntity.lastModifiedDate, ascending: false)],
             predicate: predicate,
             animation: .default
         )
-        
-        
     }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("\(prayer.title ?? "")")
+            
+            // MARK: Prayer Title
+            Text(prayer.title ?? "")
                 .font(.headline)
             
             Divider()
+            
+            // MARK: Passages
             if passages.isEmpty {
                 Text("No passages yet.")
                     .foregroundColor(.secondary)
             } else {
                 ForEach(passages, id: \.self) { passage in
-                    Text(passage.passage ?? "Untitled Request")
+                    Text(passage.passage ?? "Untitled Passage")
                 }
             }
-             
+            
             Divider()
             
+            // MARK: Requests
             if requests.isEmpty {
                 Text("No requests yet.")
                     .foregroundColor(.secondary)
@@ -69,13 +69,36 @@ struct PrayerDetailView: View {
                     Text(request.request ?? "Untitled Request")
                 }
             }
-
+            
+            Divider()
+            
+            // MARK: Tags (HORIZONTAL)
+            // Example: many-to-many or one-to-many relationship from prayer to TagEntity
+            if let tagSet = prayer.tags as? Set<TagEntity>, !tagSet.isEmpty {
+                let sortedTags = tagSet.sorted { ($0.tag ?? "") < ($1.tag ?? "") }
+                
+                Text("Tags:")
+                    .font(.subheadline)
+                
+                // Horizontal layout with an HStack
+                HStack {
+                    ForEach(sortedTags, id: \.self) { tagItem in
+                        Text("#\(tagItem.tag ?? "Tag")")
+                            .font(.callout)
+                            .foregroundColor(.blue)
+                    }
+                }
+            } else {
+                Text("No tags yet.")
+                    .foregroundColor(.secondary)
+            }
         }
         .padding()
         .navigationTitle("Prayer Details")
     }
 }
 
+// MARK: Preview
 struct PrayerDetailView_Previews: PreviewProvider {
     static var previews: some View {
         let controller = PersistenceController(inMemory: true)
@@ -88,16 +111,24 @@ struct PrayerDetailView_Previews: PreviewProvider {
         samplePrayer.creationDate = Date().addingTimeInterval(-86400) // 1 day ago
         samplePrayer.lastModifiedDate = Date()
         
-        // Create a few related RequestEntities
+        // Create some Requests
         for i in 1...3 {
             let newRequest = RequestEntity(context: context)
             newRequest.id = UUID()
             newRequest.request = "Request #\(i)"
             newRequest.creationDate = Date().addingTimeInterval(Double(-i) * 3600)
             newRequest.lastModifiedDate = Date()
-            
-            // Link the request to the samplePrayer
             newRequest.prayer = samplePrayer
+        }
+        
+        // Create some Tags (assuming `TagEntity` has `id`, `tag` attributes)
+        for tagText in ["Family", "Urgent", "Celebration"] {
+            let newTag = TagEntity(context: context)
+            newTag.id = UUID()
+            newTag.tag = tagText
+            // If it's a many-to-many relationship, do e.g. samplePrayer.addToTags(newTag)
+            // If it's one-to-many, do newTag.prayer = samplePrayer
+            samplePrayer.addToTags(newTag)
         }
         
         return NavigationView {
