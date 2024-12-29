@@ -10,35 +10,42 @@ import CoreData
 
 struct PrayerDetailView: View {
     @ObservedObject var prayer: PrayerEntity
-    
-    // A FetchRequest that fetches only those RequestEntities
-    // where prayer == the provided `prayer`
+
+    // Requests
     @FetchRequest private var requests: FetchedResults<RequestEntity>
-    
-    // A FetchRequest that fetches only those PassageEntities
-    // where prayer == the provided `prayer`
+    // Passages
     @FetchRequest private var passages: FetchedResults<PassageEntity>
-    
-    // Initialize your fetch requests with a predicate for this prayer
+    // Tags (many-to-many)
+    @FetchRequest private var tags: FetchedResults<TagEntity>
+
     init(prayer: PrayerEntity) {
         self.prayer = prayer
         
-        // Filter: "prayer == current prayer"
-        let predicate = NSPredicate(format: "prayer == %@", prayer)
-        
+        // Filter: "prayer == current prayer" for requests
+        let predicateRequests = NSPredicate(format: "prayer == %@", prayer)
         _requests = FetchRequest<RequestEntity>(
             sortDescriptors: [NSSortDescriptor(keyPath: \RequestEntity.lastModifiedDate, ascending: false)],
-            predicate: predicate,
+            predicate: predicateRequests,
             animation: .default
         )
-        
+
+        // Filter: "prayer == current prayer" for passages
+        let predicatePassages = NSPredicate(format: "prayer == %@", prayer)
         _passages = FetchRequest<PassageEntity>(
             sortDescriptors: [NSSortDescriptor(keyPath: \PassageEntity.lastModifiedDate, ascending: false)],
-            predicate: predicate,
+            predicate: predicatePassages,
+            animation: .default
+        )
+
+        // For Tags in many-to-many: "ANY prayers == current prayer"
+        let predicateTags = NSPredicate(format: "ANY prayers == %@", prayer)
+        _tags = FetchRequest<TagEntity>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \TagEntity.tag, ascending: true)],
+            predicate: predicateTags,
             animation: .default
         )
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             
@@ -69,25 +76,22 @@ struct PrayerDetailView: View {
                     Text(request.request ?? "Untitled Request")
                 }
             }
-            
+
             Divider()
-            
-            // MARK: Tags (HORIZONTAL)
-            // many-to-many from prayer to TagEntity
-            if let tagSet = prayer.tags as? Set<TagEntity>, !tagSet.isEmpty {
-                let sortedTags = tagSet.sorted { ($0.tag ?? "") < ($1.tag ?? "") }
-                
-                // Horizontal layout with an HStack
+
+            // MARK: Tags (Many-to-Many)
+            if tags.isEmpty {
+                Text("No tags yet.")
+                    .foregroundColor(.secondary)
+            } else {
+                // Show them horizontally with a leading "#"
                 HStack {
-                    ForEach(sortedTags, id: \.self) { tagItem in
-                        Text("#\(tagItem.tag ?? "Tag")")
+                    ForEach(tags, id: \.self) { tag in
+                        Text("#\(tag.tag ?? "Tag")")
                             .font(.callout)
                             .foregroundColor(.blue)
                     }
                 }
-            } else {
-                Text("No tags yet.")
-                    .foregroundColor(.secondary)
             }
         }
         .padding()
@@ -118,13 +122,12 @@ struct PrayerDetailView_Previews: PreviewProvider {
             newRequest.prayer = samplePrayer
         }
         
-        // Create some Tags (assuming `TagEntity` has `id`, `tag` attributes)
+        // Create some Tags (assuming `TagEntity` has `id`, `tag` attributes and many-to-many with PrayerEntity)
         for tagText in ["Family", "Urgent", "Celebration"] {
             let newTag = TagEntity(context: context)
             newTag.id = UUID()
             newTag.tag = tagText
-            // If it's a many-to-many relationship, do e.g. samplePrayer.addToTags(newTag)
-            // If it's one-to-many, do newTag.prayer = samplePrayer
+            // many-to-many => samplePrayer.addToTags(newTag)
             samplePrayer.addToTags(newTag)
         }
         
