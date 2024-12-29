@@ -73,12 +73,9 @@ struct PrayerDetailView: View {
             Divider()
             
             // MARK: Tags (HORIZONTAL)
-            // Example: many-to-many or one-to-many relationship from prayer to TagEntity
+            // many-to-many from prayer to TagEntity
             if let tagSet = prayer.tags as? Set<TagEntity>, !tagSet.isEmpty {
                 let sortedTags = tagSet.sorted { ($0.tag ?? "") < ($1.tag ?? "") }
-                
-                Text("Tags:")
-                    .font(.subheadline)
                 
                 // Horizontal layout with an HStack
                 HStack {
