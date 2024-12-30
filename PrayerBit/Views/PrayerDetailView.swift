@@ -37,7 +37,7 @@ struct PrayerDetailView: View {
             animation: .default
         )
 
-        // For Tags in many-to-many: "ANY prayers == current prayer"
+        // For Tags in many-to-many: "ANY prayers == %@", prayer
         let predicateTags = NSPredicate(format: "ANY prayers == %@", prayer)
         _tags = FetchRequest<TagEntity>(
             sortDescriptors: [NSSortDescriptor(keyPath: \TagEntity.tag, ascending: true)],
@@ -47,7 +47,8 @@ struct PrayerDetailView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // 1) Reduce spacing between elements
+        VStack(alignment: .leading, spacing: 6) {
             
             // MARK: Prayer Title
             Text(prayer.title ?? "")
@@ -84,7 +85,6 @@ struct PrayerDetailView: View {
                 Text("No tags yet.")
                     .foregroundColor(.secondary)
             } else {
-                // Show them horizontally with a leading "#"
                 HStack {
                     ForEach(tags, id: \.self) { tag in
                         Text("#\(tag.tag ?? "Tag")")
@@ -94,7 +94,9 @@ struct PrayerDetailView: View {
                 }
             }
         }
-        .padding()
+        // 2) Custom padding: smaller top, plus narrower left/right insets
+        //    For example, top=4, left=10, bottom=8, right=10
+        .padding(.init(top: 4, leading: 10, bottom: 8, trailing: 10))
         .navigationTitle("Prayer Details")
     }
 }
@@ -122,12 +124,11 @@ struct PrayerDetailView_Previews: PreviewProvider {
             newRequest.prayer = samplePrayer
         }
         
-        // Create some Tags (assuming `TagEntity` has `id`, `tag` attributes and many-to-many with PrayerEntity)
+        // Create some Tags
         for tagText in ["Family", "Urgent", "Celebration"] {
             let newTag = TagEntity(context: context)
             newTag.id = UUID()
             newTag.tag = tagText
-            // many-to-many => samplePrayer.addToTags(newTag)
             samplePrayer.addToTags(newTag)
         }
         
