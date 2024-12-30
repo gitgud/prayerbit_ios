@@ -17,24 +17,22 @@ struct PrayerListView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Our custom "title bar" area
+                // custom header
                 HStack {
-                    // Make the search bar big
                     TextField("Search...", text: $searchManager.searchText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(maxWidth: .infinity)     // Occupy as much space as possible
+                        .frame(maxWidth: .infinity)
                         .focused($searchIsFocused)
                     
-                    // Plus button
                     NavigationLink(destination: PrayerCreateView()) {
                         Image(systemName: "plus")
                             .font(.title2)
                             .padding(.horizontal, 8)
                     }
                 }
-                .padding()    // Some vertical/horizontal padding for style
+                .padding()
                 
-                // The list below the custom title bar
+                // your list
                 List {
                     let prayers = searchManager.searchPrayers()
                     ForEach(prayers, id: \.self) { prayer in
@@ -44,11 +42,13 @@ struct PrayerListView: View {
                     }
                 }
                 .listStyle(.plain)
+                // For iOS 16+:
+                .scrollContentBackground(.hidden)  // Hide white BG
+                .background(Color(uiColor: .systemGroupedBackground)) // Gray BG
             }
-            .navigationBarHidden(true)  // Hide default nav bar so we can use our custom header
+            .navigationBarHidden(true)
             .onAppear {
                 searchManager.setContext(viewContext)
-                // Focus the search bar on appear
                 DispatchQueue.main.async {
                     searchIsFocused = true
                 }
