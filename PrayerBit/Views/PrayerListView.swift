@@ -1,10 +1,19 @@
+//
+//  PrayerListView.swift
+//  PrayerBit
+//
+//  Created by kale on 12/25/24.
+//
+
 import SwiftUI
 import CoreData
 
 struct PrayerListView: View {
     @Environment(\.managedObjectContext) private var viewContext
     
+    // Our custom manager that holds the search text and the resulting array
     @StateObject private var searchManager = PrayerSearchManager()
+    
     @FocusState private var searchIsFocused: Bool
     
     var body: some View {
@@ -29,28 +38,29 @@ struct PrayerListView: View {
                         }
                     }
                     .padding()
-                    // Give the HStack the same background color (optional,
-                    // because the ZStack behind it is also gray)
                     .background(Color(uiColor: .systemGroupedBackground))
                     
-                    // 3) The list below
+                    // 3) The list below, bound to searchManager.filteredPrayers
                     List {
-                        let prayers = searchManager.searchPrayers()
-                        ForEach(prayers, id: \.self) { prayer in
+                        ForEach(searchManager.filteredPrayers, id: \.self) { prayer in
                             NavigationLink(destination: PrayerEditView(prayer: prayer)) {
+                                // A simple subview that displays the prayer’s title, etc.
                                 PrayerDetailView(prayer: prayer)
                             }
                         }
                     }
                     .listStyle(.plain)
-                    // On iOS 16+:
-                    .scrollContentBackground(.hidden)       // hide white BG
-                    .background(Color(uiColor: .systemGroupedBackground)) // keep list area gray
+                    .scrollContentBackground(.hidden)
+                    .background(Color(uiColor: .systemGroupedBackground))
                 }
             }
             .navigationBarHidden(true)
             .onAppear {
+                // 1) Provide the context to the manager
+                // 2) Manager immediately does a fetch in setContext -> refresh()
                 searchManager.setContext(viewContext)
+                
+                // Optional: Focus on the search bar automatically
                 DispatchQueue.main.async {
                     searchIsFocused = true
                 }

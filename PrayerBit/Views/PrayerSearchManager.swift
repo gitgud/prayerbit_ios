@@ -9,28 +9,43 @@ import SwiftUI
 import CoreData
 
 class PrayerSearchManager: ObservableObject {
-    @Published var searchText: String = ""
+    /// The text the user enters into the search bar.
+    /// Whenever this text changes, we call `refresh()` to update `filteredPrayers`.
+    @Published var searchText: String = "" {
+        didSet {
+            refresh()
+        }
+    }
+    
+    /// The array of prayers currently matching the search text (or all prayers if empty).
+    @Published private(set) var filteredPrayers: [PrayerEntity] = []
     
     private var context: NSManagedObjectContext?
     
-    // We allow passing context in a method, so we can set it later in .onAppear
+    /// Called from the outside (e.g. in PrayerListView.onAppear)
+    /// to assign a Core Data context and immediately load data.
     func setContext(_ ctx: NSManagedObjectContext) {
         self.context = ctx
+        refresh()
     }
     
-    /// Returns prayers in the following priority:
-    ///  1) Prayers whose tags match searchText
-    ///  2) Prayers whose title matches
-    ///  3) Prayers whose requests match
-    /// Duplicates removed, so each prayer appears once in final array.
-    func searchPrayers() -> [PrayerEntity] {
-        guard let ctx = context else { return [] }
-        
-        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            return fetchAllPrayers(in: ctx)
+    /// Fetches from Core Data and updates `filteredPrayers` based on the current `searchText`.
+    func refresh() {
+        guard let ctx = context else {
+            filteredPrayers = []
+            return
         }
         
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // If no search text, just fetch all prayers:
+        if trimmed.isEmpty {
+            filteredPrayers = fetchAllPrayers(in: ctx)
+            return
+        }
+        
+        // Otherwise, we combine 3 sets of matches (tags, title, requests),
+        // then remove duplicates
         var results = [PrayerEntity]()
         var seenIDs = Set<NSManagedObjectID>()
         
@@ -55,7 +70,7 @@ class PrayerSearchManager: ObservableObject {
             seenIDs.insert(p.objectID)
         }
         
-        return results
+        filteredPrayers = results
     }
     
     // MARK: - Private Helpers
@@ -63,6 +78,7 @@ class PrayerSearchManager: ObservableObject {
     private func fetchAllPrayers(in context: NSManagedObjectContext) -> [PrayerEntity] {
         let request: NSFetchRequest<PrayerEntity> = PrayerEntity.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "lastModifiedDate", ascending: false)]
+        
         do {
             return try context.fetch(request)
         } catch {
@@ -71,10 +87,10 @@ class PrayerSearchManager: ObservableObject {
         }
     }
     
-    /// Many-to-many: ANY tags.tag CONTAINS[c] <text>
     private func fetchPrayersMatchingTag(_ text: String, in context: NSManagedObjectContext) -> [PrayerEntity] {
         let request: NSFetchRequest<PrayerEntity> = PrayerEntity.fetchRequest()
         request.predicate = NSPredicate(format: "ANY tags.tag CONTAINS[c] %@", text)
+        
         do {
             return try context.fetch(request)
         } catch {
@@ -83,10 +99,10 @@ class PrayerSearchManager: ObservableObject {
         }
     }
     
-    /// Title CONTAINS[c] <text>
     private func fetchPrayersMatchingTitle(_ text: String, in context: NSManagedObjectContext) -> [PrayerEntity] {
         let request: NSFetchRequest<PrayerEntity> = PrayerEntity.fetchRequest()
         request.predicate = NSPredicate(format: "title CONTAINS[c] %@", text)
+        
         do {
             return try context.fetch(request)
         } catch {
@@ -95,10 +111,10 @@ class PrayerSearchManager: ObservableObject {
         }
     }
     
-    /// ANY requests.request CONTAINS[c] <text>
     private func fetchPrayersMatchingRequest(_ text: String, in context: NSManagedObjectContext) -> [PrayerEntity] {
         let request: NSFetchRequest<PrayerEntity> = PrayerEntity.fetchRequest()
         request.predicate = NSPredicate(format: "ANY requests.request CONTAINS[c] %@", text)
+        
         do {
             return try context.fetch(request)
         } catch {

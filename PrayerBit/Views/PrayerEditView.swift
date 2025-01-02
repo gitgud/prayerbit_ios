@@ -40,15 +40,15 @@ struct PrayerEditView: View {
                 
                 ForEach(passagesArray, id: \.objectID) { passage in
                     TextField("Passage",
-                        text: Binding(
-                            get: { passage.passage ?? "" },
-                            set: { newValue in
-                                passage.passage = newValue
-                                passage.lastModifiedDate = Date()
-                                prayer.lastModifiedDate = Date()
-                                saveContext()
-                            }
-                        )
+                              text: Binding(
+                                get: { passage.passage ?? "" },
+                                set: { newValue in
+                                    passage.passage = newValue
+                                    passage.lastModifiedDate = Date()
+                                    prayer.lastModifiedDate = Date()
+                                    saveContext()
+                                }
+                              )
                     )
                     .focused($focusedPassageID, equals: passage.objectID)
                 }
@@ -66,15 +66,15 @@ struct PrayerEditView: View {
                 
                 ForEach(requestsArray, id: \.objectID) { request in
                     TextField("Request",
-                        text: Binding(
-                            get: { request.request ?? "" },
-                            set: { newValue in
-                                request.request = newValue
-                                request.lastModifiedDate = Date()
-                                prayer.lastModifiedDate = Date()
-                                saveContext()
-                            }
-                        )
+                              text: Binding(
+                                get: { request.request ?? "" },
+                                set: { newValue in
+                                    request.request = newValue
+                                    request.lastModifiedDate = Date()
+                                    prayer.lastModifiedDate = Date()
+                                    saveContext()
+                                }
+                              )
                     )
                     .focused($focusedRequestID, equals: request.objectID)
                 }
@@ -92,16 +92,16 @@ struct PrayerEditView: View {
                 
                 ForEach(tagsArray, id: \.objectID) { tag in
                     TextField("Tag",
-                        text: Binding(
-                            get: { tag.tag ?? "" },
-                            set: { newValue in
-                                tag.tag = newValue
-                                // If TagEntity also has lastModifiedDate, set it here:
-                                // tag.lastModifiedDate = Date()
-                                prayer.lastModifiedDate = Date()
-                                saveContext()
-                            }
-                        )
+                              text: Binding(
+                                get: { tag.tag ?? "" },
+                                set: { newValue in
+                                    tag.tag = newValue
+                                    // If TagEntity also has lastModifiedDate, set it here:
+                                    // tag.lastModifiedDate = Date()
+                                    prayer.lastModifiedDate = Date()
+                                    saveContext()
+                                }
+                              )
                     )
                     .focused($focusedTagID, equals: tag.objectID)
                 }
@@ -115,7 +115,8 @@ struct PrayerEditView: View {
         }
         .navigationTitle("Edit Prayer")
         .toolbar {
-            // Single "Delete" button if there's something focused
+            // If a sub-item is focused, show "Delete" for that item;
+            // otherwise, show "Delete Prayer."
             if let deletable = itemToDelete() {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Delete") {
@@ -127,6 +128,12 @@ struct PrayerEditView: View {
                         case .tag(let tag):
                             deleteTag(tag)
                         }
+                    }
+                }
+            } else {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Delete Prayer") {
+                        deletePrayer()
                     }
                 }
             }
@@ -148,6 +155,18 @@ extension PrayerEditView {
         if let req = currentFocusedRequest() { return .request(req) }
         if let tag = currentFocusedTag() { return .tag(tag) }
         return nil
+    }
+}
+
+// MARK: - Prayer-Level Delete
+extension PrayerEditView {
+    private func deletePrayer() {
+        // Delete the entire PrayerEntity
+        viewContext.delete(prayer)
+        saveContext()
+        
+        // Once deleted, go back
+        presentationMode.wrappedValue.dismiss()
     }
 }
 
@@ -228,7 +247,6 @@ extension PrayerEditView {
 // MARK: - Tags Helpers
 extension PrayerEditView {
     private func sortedTags() -> [TagEntity] {
-        // Adjust if your relationship is named differently
         guard let tagSet = prayer.tags as? Set<TagEntity> else { return [] }
         return tagSet.sorted {
             ($0.tag ?? "") < ($1.tag ?? "")
@@ -239,11 +257,9 @@ extension PrayerEditView {
         let newTag = TagEntity(context: viewContext)
         newTag.id = UUID()
         newTag.tag = "New Tag"
-        // If TagEntity has creationDate, set it here:
-        // newTag.creationDate = Date()
         
-        // If one-to-many: newTag.prayer = prayer
-        // If many-to-many: prayer.addToTags(newTag)
+        // If your model is one-to-many, do: newTag.prayer = prayer
+        // If your model is many-to-many, do:
         prayer.addToTags(newTag)
         
         prayer.lastModifiedDate = Date()
@@ -259,7 +275,7 @@ extension PrayerEditView {
     }
     
     private func deleteTag(_ tag: TagEntity) {
-        // If many-to-many, you could remove it from just this prayer:
+        // If many-to-many, you might remove it from just this prayer:
         // prayer.removeFromTags(tag)
         // Or fully delete from the store:
         viewContext.delete(tag)
