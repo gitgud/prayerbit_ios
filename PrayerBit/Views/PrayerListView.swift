@@ -44,14 +44,30 @@ struct PrayerListView: View {
                     List {
                         ForEach(searchManager.filteredPrayers, id: \.self) { prayer in
                             NavigationLink(destination: PrayerEditView(prayer: prayer)) {
-                                // A simple subview that displays the prayer’s title, etc.
+                                // Instead of showing PrayerDetailView directly,
+                                // place it in a bubble/capsule style background.
+
                                 PrayerDetailView(prayer: prayer)
+                                    // Extra padding inside the bubble
+                                    .padding()
+                                    // Bubble background
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .fill(Color(.systemBackground))              // or any color you want
+                                            .shadow(color: .black.opacity(0.1),
+                                                    radius: 4, x: 0, y: 2)
+                                    )
+                                    // Tweak overall spacing around the cell
+                                    .padding(.vertical, 4)
                             }
+                            // Make sure the system doesn’t force a default background
+                            .listRowBackground(Color.clear)
                         }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .background(Color(uiColor: .systemGroupedBackground))
+
                 }
             }
             .navigationBarHidden(true)
