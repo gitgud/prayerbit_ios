@@ -4,25 +4,33 @@
 //
 //  Created by kale on 12/25/24.
 //
+
+
 import SwiftUI
 import CoreData
 
 class PrayerSearchManager: ObservableObject {
+    /// The text the user enters into the search bar.
+    /// Whenever this text changes, we call `refresh()` to update `filteredPrayers`.
     @Published var searchText: String = "" {
         didSet {
             refresh()
         }
     }
     
+    /// The array of prayers currently matching the search text (or all prayers if empty).
     @Published private(set) var filteredPrayers: [PrayerEntity] = []
     
     private var context: NSManagedObjectContext?
     
+    /// Called from the outside (e.g. in PrayerListView.onAppear)
+    /// to assign a Core Data context and immediately load data.
     func setContext(_ ctx: NSManagedObjectContext) {
         self.context = ctx
         refresh()
     }
     
+    /// Fetches from Core Data and updates `filteredPrayers` based on the current `searchText`.
     func refresh() {
         guard let ctx = context else {
             filteredPrayers = []
@@ -31,17 +39,18 @@ class PrayerSearchManager: ObservableObject {
         
         let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // If no search text, fetch all:
+        // If no search text, just fetch all prayers:
         if trimmed.isEmpty {
             filteredPrayers = fetchAllPrayers(in: ctx)
             return
         }
         
-        // Otherwise, combine 3 sets of matches (tags, title, requests)
+        // Otherwise, we combine 3 sets of matches (tags, title, requests),
+        // then remove duplicates
         var results = [PrayerEntity]()
         var seenIDs = Set<NSManagedObjectID>()
         
-        // 1) Tag matches
+        // 1) Tag matches (sorted by TagEntity.order DESC, TagEntity.lastModifiedDate DESC)
         let tagMatches = fetchPrayersMatchingTag(trimmed, in: ctx)
         for p in tagMatches where !seenIDs.contains(p.objectID) {
             results.append(p)
@@ -70,6 +79,7 @@ class PrayerSearchManager: ObservableObject {
     private func fetchAllPrayers(in context: NSManagedObjectContext) -> [PrayerEntity] {
         let request: NSFetchRequest<PrayerEntity> = PrayerEntity.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "lastModifiedDate", ascending: false)]
+        
         do {
             return try context.fetch(request)
         } catch {
@@ -78,13 +88,33 @@ class PrayerSearchManager: ObservableObject {
         }
     }
     
+    /// Fetches TagEntity objects (whose `tag` contains the search text) sorted by
+    /// `order DESC`, then `lastModifiedDate DESC`. From those tags,
+    /// we build an array of unique PrayerEntity in that same order.
     private func fetchPrayersMatchingTag(_ text: String, in context: NSManagedObjectContext) -> [PrayerEntity] {
-        // This STILL works for a to-many "tags" relationship from Prayer to Tag
-        let request: NSFetchRequest<PrayerEntity> = PrayerEntity.fetchRequest()
-        request.predicate = NSPredicate(format: "ANY tags.tag CONTAINS[c] %@", text)
+        // 1) Fetch TagEntity that matches text
+        let tagRequest: NSFetchRequest<TagEntity> = TagEntity.fetchRequest()
+        tagRequest.predicate = NSPredicate(format: "tag CONTAINS[c] %@", text)
+        
+        // 2) Sort descriptors: order DESC, then lastModifiedDate DESC
+        tagRequest.sortDescriptors = [
+            NSSortDescriptor(key: "order", ascending: false),
+            NSSortDescriptor(key: "lastModifiedDate", ascending: false)
+        ]
         
         do {
-            return try context.fetch(request)
+            // 3) Fetch the matching tags
+            let matchingTags = try context.fetch(tagRequest)
+            
+            // 4) Build a list of unique prayers from these tags
+            var results = [PrayerEntity]()
+            for tag in matchingTags {
+                if let prayer = tag.prayer, !results.contains(prayer) {
+                    results.append(prayer)
+                }
+            }
+            return results
+            
         } catch {
             print("Error fetching by tag: \(error)")
             return []
