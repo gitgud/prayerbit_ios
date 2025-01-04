@@ -4,6 +4,8 @@
 //
 //  Created by kale on 12/25/24.
 //
+
+
 import SwiftUI
 import CoreData
 
@@ -75,6 +77,10 @@ struct PrayerEditView: View {
                               )
                     )
                     .focused($focusedRequestID, equals: request.objectID)
+                    // Highlight any request whose status is "Waiting" with a yellow background
+                    .listRowBackground(
+                        request.status == "Waiting" ? Color.yellow.opacity(0.3) : Color.clear
+                    )
                 }
                 
                 Button {
@@ -99,11 +105,6 @@ struct PrayerEditView: View {
                                     
                                     // 2) Recount how many tags in Core Data share this exact string
                                     let sameTagCount = countTags(with: newValue)
-                                    // Including itself => this count already includes this one (assuming we saved changes).
-                                    // If not, we can do +1 logic if needed. Typically, the fetch will include the current unsaved
-                                    // changes only if we've done partial saves or we pass .affectedStores.
-                                    // For reliability, you could do a "self != tag" predicate, then +1.
-                                    
                                     tag.order = Int16(sameTagCount)
                                     
                                     prayer.lastModifiedDate = Date()
@@ -231,6 +232,9 @@ extension PrayerEditView {
         newRequest.lastModifiedDate = Date()
         newRequest.prayer = prayer
         
+        // 1) Set default status to "Waiting"
+        newRequest.status = "Waiting"
+        
         prayer.lastModifiedDate = Date()
         saveContext()
         
@@ -264,14 +268,12 @@ extension PrayerEditView {
         let newTag = TagEntity(context: viewContext)
         newTag.id = UUID()
         newTag.tag = "New Tag"
-        newTag.lastModifiedDate = Date()          // 1) Set Tag's lastModifiedDate
+        newTag.lastModifiedDate = Date() // 1) Set Tag's lastModifiedDate
         newTag.prayer = prayer
         
-        // 2) Count how many tags in the store currently have the exact same `tag`.
-        //    This new tag is not saved yet, so by default the fetch won't pick it up unless we save first
-        //    or do some extra fetch configuration. Typically, you'd do +1 to count yourself.
+        // 2) Count how many tags in the store currently have the exact same `tag`
         let sameTagCount = countTags(with: newTag.tag ?? "")
-        newTag.order = Int16(sameTagCount + 1)    // +1 to include this new Tag
+        newTag.order = Int16(sameTagCount + 1) // +1 to include this new tag
         
         prayer.lastModifiedDate = Date()
         saveContext()
@@ -280,7 +282,6 @@ extension PrayerEditView {
         focusedTagID = newTag.objectID
     }
     
-    /// Finds the TagEntity that is currently in focus (if any).
     private func currentFocusedTag() -> TagEntity? {
         guard let fid = focusedTagID else { return nil }
         return sortedTags().first { $0.objectID == fid }
@@ -296,7 +297,6 @@ extension PrayerEditView {
 
 // MARK: - Count Tags Helper
 extension PrayerEditView {
-    /// Returns how many TagEntity objects in Core Data have a `tag` exactly matching `text`.
     private func countTags(with text: String) -> Int {
         let request: NSFetchRequest<TagEntity> = TagEntity.fetchRequest()
         request.predicate = NSPredicate(format: "tag == %@", text)
