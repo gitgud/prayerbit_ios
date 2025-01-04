@@ -4,7 +4,6 @@
 //
 //  Created by kale on 12/25/24.
 //
-
 import SwiftUI
 import CoreData
 
@@ -17,7 +16,7 @@ struct PrayerEditView: View {
     // MARK: Focus States
     @FocusState private var focusedRequestID: NSManagedObjectID?
     @FocusState private var focusedPassageID: NSManagedObjectID?
-    @FocusState private var focusedTagID: NSManagedObjectID?  // For tags
+    @FocusState private var focusedTagID: NSManagedObjectID?
     
     var body: some View {
         Form {
@@ -95,7 +94,18 @@ struct PrayerEditView: View {
                                 get: { tag.tag ?? "" },
                                 set: { newValue in
                                     tag.tag = newValue
-                                    // If TagEntity also has a `lastModifiedDate`, update it here
+                                    // 1) Update Tag's lastModifiedDate
+                                    tag.lastModifiedDate = Date()
+                                    
+                                    // 2) Recount how many tags in Core Data share this exact string
+                                    let sameTagCount = countTags(with: newValue)
+                                    // Including itself => this count already includes this one (assuming we saved changes).
+                                    // If not, we can do +1 logic if needed. Typically, the fetch will include the current unsaved
+                                    // changes only if we've done partial saves or we pass .affectedStores.
+                                    // For reliability, you could do a "self != tag" predicate, then +1.
+                                    
+                                    tag.order = Int16(sameTagCount)
+                                    
                                     prayer.lastModifiedDate = Date()
                                     saveContext()
                                 }
@@ -113,6 +123,8 @@ struct PrayerEditView: View {
         }
         .navigationTitle("Edit Prayer")
         .toolbar {
+            // If a sub-item is focused, show "Delete" for that item;
+            // otherwise, show "Delete Prayer."
             if let deletable = itemToDelete() {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Delete") {
@@ -137,7 +149,7 @@ struct PrayerEditView: View {
     }
 }
 
-// MARK: - Deletable Logic
+// MARK: - Deletable Enum + Logic
 extension PrayerEditView {
     private enum Deletable {
         case passage(PassageEntity)
@@ -160,12 +172,12 @@ extension PrayerEditView {
         viewContext.delete(prayer)
         saveContext()
         
-        // Go back
+        // Once deleted, go back
         presentationMode.wrappedValue.dismiss()
     }
 }
 
-// MARK: - Passages
+// MARK: - Passages Helpers
 extension PrayerEditView {
     private func sortedPassages() -> [PassageEntity] {
         guard let passagesSet = prayer.passage as? Set<PassageEntity> else { return [] }
@@ -202,7 +214,7 @@ extension PrayerEditView {
     }
 }
 
-// MARK: - Requests
+// MARK: - Requests Helpers
 extension PrayerEditView {
     private func sortedRequests() -> [RequestEntity] {
         guard let requestSet = prayer.requests as? Set<RequestEntity> else { return [] }
@@ -239,11 +251,9 @@ extension PrayerEditView {
     }
 }
 
-// MARK: - Tags
+// MARK: - Tags Helpers
 extension PrayerEditView {
     private func sortedTags() -> [TagEntity] {
-        // Now that it's one-to-many, the `tags` relationship
-        // can still be a NSSet if your model has "tags" on the prayer side.
         guard let tagSet = prayer.tags as? Set<TagEntity> else { return [] }
         return tagSet.sorted {
             ($0.tag ?? "") < ($1.tag ?? "")
@@ -254,8 +264,14 @@ extension PrayerEditView {
         let newTag = TagEntity(context: viewContext)
         newTag.id = UUID()
         newTag.tag = "New Tag"
-        // One-to-many => simply assign the prayer
+        newTag.lastModifiedDate = Date()          // 1) Set Tag's lastModifiedDate
         newTag.prayer = prayer
+        
+        // 2) Count how many tags in the store currently have the exact same `tag`.
+        //    This new tag is not saved yet, so by default the fetch won't pick it up unless we save first
+        //    or do some extra fetch configuration. Typically, you'd do +1 to count yourself.
+        let sameTagCount = countTags(with: newTag.tag ?? "")
+        newTag.order = Int16(sameTagCount + 1)    // +1 to include this new Tag
         
         prayer.lastModifiedDate = Date()
         saveContext()
@@ -264,21 +280,33 @@ extension PrayerEditView {
         focusedTagID = newTag.objectID
     }
     
+    /// Finds the TagEntity that is currently in focus (if any).
     private func currentFocusedTag() -> TagEntity? {
         guard let fid = focusedTagID else { return nil }
         return sortedTags().first { $0.objectID == fid }
     }
     
     private func deleteTag(_ tag: TagEntity) {
-        // Typically, to remove from the store:
         viewContext.delete(tag)
-        
-        // Or if you wanted to break the relationship but keep the Tag in the DB:
-        // tag.prayer = nil
-        
         focusedTagID = nil
         prayer.lastModifiedDate = Date()
         saveContext()
+    }
+}
+
+// MARK: - Count Tags Helper
+extension PrayerEditView {
+    /// Returns how many TagEntity objects in Core Data have a `tag` exactly matching `text`.
+    private func countTags(with text: String) -> Int {
+        let request: NSFetchRequest<TagEntity> = TagEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "tag == %@", text)
+        
+        do {
+            return try viewContext.fetch(request).count
+        } catch {
+            print("Error counting tags for text \(text): \(error)")
+            return 0
+        }
     }
 }
 
