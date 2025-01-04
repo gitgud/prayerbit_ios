@@ -14,7 +14,7 @@
         <attribute name="title" optional="YES" attributeType="String"/>
         <relationship name="passage" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="PassageEntity" inverseName="prayer" inverseEntity="PassageEntity"/>
         <relationship name="requests" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="RequestEntity" inverseName="prayer" inverseEntity="RequestEntity"/>
-        <relationship name="tags" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="TagEntity" inverseName="prayers" inverseEntity="TagEntity"/>
+        <relationship name="tags" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="TagEntity" inverseName="prayer" inverseEntity="TagEntity"/>
     </entity>
     <entity name="RequestEntity" representedClassName="RequestEntity" syncable="YES" codeGenerationType="class">
         <attribute name="creationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -25,7 +25,9 @@
     </entity>
     <entity name="TagEntity" representedClassName="TagEntity" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastModifiedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="order" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="tag" optional="YES" attributeType="String"/>
-        <relationship name="prayers" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="PrayerEntity" inverseName="tags" inverseEntity="PrayerEntity"/>
+        <relationship name="prayer" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="PrayerEntity" inverseName="tags" inverseEntity="PrayerEntity"/>
     </entity>
 </model>

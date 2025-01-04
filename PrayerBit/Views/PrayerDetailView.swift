@@ -15,7 +15,7 @@ struct PrayerDetailView: View {
     @FetchRequest private var requests: FetchedResults<RequestEntity>
     // Passages
     @FetchRequest private var passages: FetchedResults<PassageEntity>
-    // Tags (many-to-many)
+    // Tags (now one-to-many from Prayer to Tag)
     @FetchRequest private var tags: FetchedResults<TagEntity>
 
     init(prayer: PrayerEntity) {
@@ -37,8 +37,8 @@ struct PrayerDetailView: View {
             animation: .default
         )
 
-        // For Tags in many-to-many: "ANY prayers == %@", prayer
-        let predicateTags = NSPredicate(format: "ANY prayers == %@", prayer)
+        // For Tags in a one-to-many: "prayer == %@", prayer
+        let predicateTags = NSPredicate(format: "prayer == %@", prayer)
         _tags = FetchRequest<TagEntity>(
             sortDescriptors: [NSSortDescriptor(keyPath: \TagEntity.tag, ascending: true)],
             predicate: predicateTags,
@@ -47,9 +47,7 @@ struct PrayerDetailView: View {
     }
 
     var body: some View {
-        // Reduced spacing between elements
         VStack(alignment: .leading, spacing: 6) {
-            
             // MARK: Prayer Title
             Text(prayer.title ?? "")
                 .font(.headline)
@@ -80,7 +78,7 @@ struct PrayerDetailView: View {
 
             Divider()
 
-            // MARK: Tags (Many-to-Many)
+            // MARK: Tags (One-to-Many)
             if tags.isEmpty {
                 Text("No tags yet.")
                     .foregroundColor(.secondary)
@@ -94,10 +92,7 @@ struct PrayerDetailView: View {
                 }
             }
         }
-        // Slight custom padding around the detail content
         .padding(.init(top: 4, leading: 10, bottom: 8, trailing: 10))
-        // The "bubble" background and shadow are added at the PrayerListView level
-        // so this remains a simple interior content view
         .navigationTitle("Prayer Details")
     }
 }
@@ -125,12 +120,13 @@ struct PrayerDetailView_Previews: PreviewProvider {
             newRequest.prayer = samplePrayer
         }
         
-        // Create some Tags
+        // Create some Tags (each Tag is bound to this single Prayer)
         for tagText in ["Family", "Urgent", "Celebration"] {
             let newTag = TagEntity(context: context)
             newTag.id = UUID()
             newTag.tag = tagText
-            samplePrayer.addToTags(newTag)
+            // One-to-Many means we simply assign the prayer
+            newTag.prayer = samplePrayer
         }
         
         return NavigationView {

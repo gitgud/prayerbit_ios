@@ -17,9 +17,8 @@ struct PrayerEditView: View {
     // MARK: Focus States
     @FocusState private var focusedRequestID: NSManagedObjectID?
     @FocusState private var focusedPassageID: NSManagedObjectID?
-    @FocusState private var focusedTagID: NSManagedObjectID?  // <-- For tags
+    @FocusState private var focusedTagID: NSManagedObjectID?  // For tags
     
-    // MARK: Body
     var body: some View {
         Form {
             // MARK: Prayer
@@ -96,8 +95,7 @@ struct PrayerEditView: View {
                                 get: { tag.tag ?? "" },
                                 set: { newValue in
                                     tag.tag = newValue
-                                    // If TagEntity also has lastModifiedDate, set it here:
-                                    // tag.lastModifiedDate = Date()
+                                    // If TagEntity also has a `lastModifiedDate`, update it here
                                     prayer.lastModifiedDate = Date()
                                     saveContext()
                                 }
@@ -115,8 +113,6 @@ struct PrayerEditView: View {
         }
         .navigationTitle("Edit Prayer")
         .toolbar {
-            // If a sub-item is focused, show "Delete" for that item;
-            // otherwise, show "Delete Prayer."
             if let deletable = itemToDelete() {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Delete") {
@@ -141,7 +137,7 @@ struct PrayerEditView: View {
     }
 }
 
-// MARK: - Deletable Enum + Logic
+// MARK: - Deletable Logic
 extension PrayerEditView {
     private enum Deletable {
         case passage(PassageEntity)
@@ -149,7 +145,6 @@ extension PrayerEditView {
         case tag(TagEntity)
     }
     
-    /// Returns which item is currently focused, if any.
     private func itemToDelete() -> Deletable? {
         if let pass = currentFocusedPassage() { return .passage(pass) }
         if let req = currentFocusedRequest() { return .request(req) }
@@ -165,12 +160,12 @@ extension PrayerEditView {
         viewContext.delete(prayer)
         saveContext()
         
-        // Once deleted, go back
+        // Go back
         presentationMode.wrappedValue.dismiss()
     }
 }
 
-// MARK: - Passages Helpers
+// MARK: - Passages
 extension PrayerEditView {
     private func sortedPassages() -> [PassageEntity] {
         guard let passagesSet = prayer.passage as? Set<PassageEntity> else { return [] }
@@ -207,7 +202,7 @@ extension PrayerEditView {
     }
 }
 
-// MARK: - Requests Helpers
+// MARK: - Requests
 extension PrayerEditView {
     private func sortedRequests() -> [RequestEntity] {
         guard let requestSet = prayer.requests as? Set<RequestEntity> else { return [] }
@@ -244,9 +239,11 @@ extension PrayerEditView {
     }
 }
 
-// MARK: - Tags Helpers
+// MARK: - Tags
 extension PrayerEditView {
     private func sortedTags() -> [TagEntity] {
+        // Now that it's one-to-many, the `tags` relationship
+        // can still be a NSSet if your model has "tags" on the prayer side.
         guard let tagSet = prayer.tags as? Set<TagEntity> else { return [] }
         return tagSet.sorted {
             ($0.tag ?? "") < ($1.tag ?? "")
@@ -257,10 +254,8 @@ extension PrayerEditView {
         let newTag = TagEntity(context: viewContext)
         newTag.id = UUID()
         newTag.tag = "New Tag"
-        
-        // If your model is one-to-many, do: newTag.prayer = prayer
-        // If your model is many-to-many, do:
-        prayer.addToTags(newTag)
+        // One-to-many => simply assign the prayer
+        newTag.prayer = prayer
         
         prayer.lastModifiedDate = Date()
         saveContext()
@@ -275,10 +270,11 @@ extension PrayerEditView {
     }
     
     private func deleteTag(_ tag: TagEntity) {
-        // If many-to-many, you might remove it from just this prayer:
-        // prayer.removeFromTags(tag)
-        // Or fully delete from the store:
+        // Typically, to remove from the store:
         viewContext.delete(tag)
+        
+        // Or if you wanted to break the relationship but keep the Tag in the DB:
+        // tag.prayer = nil
         
         focusedTagID = nil
         prayer.lastModifiedDate = Date()
