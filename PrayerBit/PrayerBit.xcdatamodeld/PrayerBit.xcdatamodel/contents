@@ -21,6 +21,7 @@
         <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="lastModifiedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="request" optional="YES" attributeType="String"/>
+        <attribute name="status" attributeType="String"/>
         <relationship name="prayer" maxCount="1" deletionRule="Nullify" destinationEntity="PrayerEntity" inverseName="requests" inverseEntity="PrayerEntity"/>
     </entity>
     <entity name="TagEntity" representedClassName="TagEntity" syncable="YES" codeGenerationType="class">
