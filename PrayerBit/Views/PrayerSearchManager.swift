@@ -5,7 +5,6 @@
 //  Created by kale on 12/25/24.
 //
 
-
 import SwiftUI
 import CoreData
 
@@ -45,7 +44,7 @@ class PrayerSearchManager: ObservableObject {
             return
         }
         
-        // Otherwise, we combine 3 sets of matches (tags, title, requests),
+        // Otherwise, we combine 3 sets of matches (tags, title, requests)
         // then remove duplicates
         var results = [PrayerEntity]()
         var seenIDs = Set<NSManagedObjectID>()
@@ -88,35 +87,30 @@ class PrayerSearchManager: ObservableObject {
         }
     }
     
-    /// Fetches TagEntity objects (whose `tag` contains the search text) sorted by
-    /// `order DESC`, then `lastModifiedDate DESC`. From those tags,
-    /// we build an array of unique PrayerEntity in that same order.
+    /// Fetch TagEntity objects whose `tag` contains the search text, sorted by
+    /// `order DESC, lastModifiedDate DESC`. Then gather each TagEntity's prayer.
     private func fetchPrayersMatchingTag(_ text: String, in context: NSManagedObjectContext) -> [PrayerEntity] {
-        // 1) Fetch TagEntity that matches text
         let tagRequest: NSFetchRequest<TagEntity> = TagEntity.fetchRequest()
         tagRequest.predicate = NSPredicate(format: "tag CONTAINS[c] %@", text)
-        
-        // 2) Sort descriptors: order DESC, then lastModifiedDate DESC
+        // Sort: first by order DESC, then lastModifiedDate DESC
         tagRequest.sortDescriptors = [
             NSSortDescriptor(key: "order", ascending: false),
             NSSortDescriptor(key: "lastModifiedDate", ascending: false)
         ]
         
         do {
-            // 3) Fetch the matching tags
             let matchingTags = try context.fetch(tagRequest)
             
-            // 4) Build a list of unique prayers from these tags
-            var results = [PrayerEntity]()
+            var prayers = [PrayerEntity]()
             for tag in matchingTags {
-                if let prayer = tag.prayer, !results.contains(prayer) {
-                    results.append(prayer)
+                if let prayer = tag.prayer, !prayers.contains(prayer) {
+                    prayers.append(prayer)
                 }
             }
-            return results
+            return prayers
             
         } catch {
-            print("Error fetching by tag: \(error)")
+            print("Error fetching tags for text \(text): \(error)")
             return []
         }
     }
