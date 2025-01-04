@@ -19,12 +19,12 @@ struct PrayerListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // 1) Gray background behind everything
+                // Gray background behind everything
                 Color(uiColor: .systemGroupedBackground)
                     .edgesIgnoringSafeArea(.all)
                 
                 VStack(spacing: 0) {
-                    // 2) Custom top bar with a matching background
+                    // Custom top bar with a matching background
                     HStack {
                         TextField("Search...", text: $searchManager.searchText)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -40,40 +40,43 @@ struct PrayerListView: View {
                     .padding()
                     .background(Color(uiColor: .systemGroupedBackground))
                     
-                    // 3) The list below, bound to searchManager.filteredPrayers
+                    // The list below, bound to searchManager.filteredPrayers
                     List {
                         ForEach(searchManager.filteredPrayers, id: \.self) { prayer in
-                            NavigationLink(destination: PrayerEditView(prayer: prayer)) {
-                                // Instead of showing PrayerDetailView directly,
-                                // place it in a bubble/capsule style background.
-
+                            // We use a ZStack so we can place a hidden NavigationLink
+                            // (removing the default chevron arrow), while still
+                            // having a tappable area for navigation.
+                            ZStack {
+                                // The "bubble" styled view
                                 PrayerDetailView(prayer: prayer)
-                                    // Extra padding inside the bubble
                                     .padding()
-                                    // Bubble background
                                     .background(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .fill(Color(.systemBackground))              // or any color you want
+                                            .fill(Color(.systemBackground))
                                             .shadow(color: .black.opacity(0.1),
                                                     radius: 4, x: 0, y: 2)
                                     )
-                                    // Tweak overall spacing around the cell
                                     .padding(.vertical, 4)
+                                
+                                // Invisible NavigationLink to remove the arrow on the right
+                                NavigationLink(destination: PrayerEditView(prayer: prayer)) {
+                                    EmptyView()
+                                }
+                                .opacity(0)
                             }
-                            // Make sure the system doesn’t force a default background
+                            // Remove default list row background and separators
                             .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                         }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .background(Color(uiColor: .systemGroupedBackground))
-
                 }
             }
             .navigationBarHidden(true)
             .onAppear {
-                // 1) Provide the context to the manager
-                // 2) Manager immediately does a fetch in setContext -> refresh()
+                // Provide the context to the manager & force a fetch
                 searchManager.setContext(viewContext)
                 
                 // Optional: Focus on the search bar automatically

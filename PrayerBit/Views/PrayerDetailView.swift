@@ -47,7 +47,7 @@ struct PrayerDetailView: View {
     }
 
     var body: some View {
-        // 1) Reduce spacing between elements
+        // Reduced spacing between elements
         VStack(alignment: .leading, spacing: 6) {
             
             // MARK: Prayer Title
@@ -94,14 +94,15 @@ struct PrayerDetailView: View {
                 }
             }
         }
-        // 2) Custom padding: smaller top, plus narrower left/right insets
-        //    For example, top=4, left=10, bottom=8, right=10
+        // Slight custom padding around the detail content
         .padding(.init(top: 4, leading: 10, bottom: 8, trailing: 10))
+        // The "bubble" background and shadow are added at the PrayerListView level
+        // so this remains a simple interior content view
         .navigationTitle("Prayer Details")
     }
 }
 
-// MARK: Preview
+// MARK: - Preview
 struct PrayerDetailView_Previews: PreviewProvider {
     static var previews: some View {
         let controller = PersistenceController(inMemory: true)
