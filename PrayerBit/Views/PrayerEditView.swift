@@ -5,7 +5,6 @@
 //  Created by kale on 12/25/24.
 //
 
-
 import SwiftUI
 import CoreData
 
@@ -77,10 +76,30 @@ struct PrayerEditView: View {
                               )
                     )
                     .focused($focusedRequestID, equals: request.objectID)
-                    // Highlight any request whose status is "Waiting" with a yellow background
-                    .listRowBackground(
-                        request.status == "Waiting" ? Color.yellow.opacity(0.3) : Color.clear
-                    )
+                    // 1) Background color based on status
+                    .listRowBackground(requestStatusColor(request))
+                    // 2) Swipe actions for status changes
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button("Waiting") {
+                            setRequestStatus(request, to: "Waiting")
+                        }
+                        .tint(.yellow)
+                        
+                        Button("Fulfilled") {
+                            setRequestStatus(request, to: "Fulfilled")
+                        }
+                        .tint(.green)
+                        
+                        Button("Rejected") {
+                            setRequestStatus(request, to: "Rejected")
+                        }
+                        .tint(.red)
+                        
+                        Button("Unknown") {
+                            setRequestStatus(request, to: "Unknown")
+                        }
+                        .tint(.gray)
+                    }
                 }
                 
                 Button {
@@ -219,8 +238,34 @@ extension PrayerEditView {
 extension PrayerEditView {
     private func sortedRequests() -> [RequestEntity] {
         guard let requestSet = prayer.requests as? Set<RequestEntity> else { return [] }
-        return requestSet.sorted {
-            ($0.creationDate ?? Date()) < ($1.creationDate ?? Date())
+        // Sort by status order first, then by creation date (or however you prefer).
+        // The order is: Waiting(0), Fulfilled(1), Rejected(2), Unknown(3)
+        
+        return requestSet.sorted { left, right in
+            let leftOrder = sortOrder(for: left)
+            let rightOrder = sortOrder(for: right)
+            
+            if leftOrder == rightOrder {
+                // Tie-breaker: fallback to creation date
+                return (left.creationDate ?? Date()) < (right.creationDate ?? Date())
+            } else {
+                return leftOrder < rightOrder
+            }
+        }
+    }
+    
+    private func sortOrder(for request: RequestEntity) -> Int {
+        switch request.status {
+        case "Waiting":
+            return 0
+        case "Fulfilled":
+            return 1
+        case "Rejected":
+            return 2
+        case "Unknown":
+            return 3
+        default:
+            return 4
         }
     }
     
@@ -232,7 +277,7 @@ extension PrayerEditView {
         newRequest.lastModifiedDate = Date()
         newRequest.prayer = prayer
         
-        // 1) Set default status to "Waiting"
+        // Default status to "Waiting"
         newRequest.status = "Waiting"
         
         prayer.lastModifiedDate = Date()
@@ -240,6 +285,14 @@ extension PrayerEditView {
         
         // Focus the newly created request
         focusedRequestID = newRequest.objectID
+    }
+    
+    /// Helper method to set the status on a request and save.
+    private func setRequestStatus(_ request: RequestEntity, to newStatus: String) {
+        request.status = newStatus
+        request.lastModifiedDate = Date()
+        prayer.lastModifiedDate = Date()
+        saveContext()
     }
     
     private func currentFocusedRequest() -> RequestEntity? {
@@ -271,7 +324,7 @@ extension PrayerEditView {
         newTag.lastModifiedDate = Date() // 1) Set Tag's lastModifiedDate
         newTag.prayer = prayer
         
-        // 2) Count how many tags in the store currently have the exact same `tag`
+        // 2) Count how many tags in the store have this exact same `tag`.
         let sameTagCount = countTags(with: newTag.tag ?? "")
         newTag.order = Int16(sameTagCount + 1) // +1 to include this new tag
         
@@ -306,6 +359,26 @@ extension PrayerEditView {
         } catch {
             print("Error counting tags for text \(text): \(error)")
             return 0
+        }
+    }
+}
+
+// MARK: - Row Color Helper
+extension PrayerEditView {
+    /// Returns a color for the request row based on status.
+    private func requestStatusColor(_ request: RequestEntity) -> Color {
+        switch request.status {
+        case "Waiting":
+            return Color.yellow.opacity(0.3)
+        case "Fulfilled":
+            return Color.green.opacity(0.3)
+        case "Rejected":
+            return Color.red.opacity(0.3)
+        case "Unknown":
+            // A dark gray that’s a bit darker than the background
+            return Color.gray.opacity(0.3)
+        default:
+            return Color.clear
         }
     }
 }
