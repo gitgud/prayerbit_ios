@@ -20,7 +20,7 @@ struct PrayerListView: View {
     // Whether the search field is focused
     @FocusState private var searchIsFocused: Bool
     
-    // MARK: - A set of statuses (so multiple can be selected). "Waiting" is selected by default.
+    // A set of statuses (so multiple can be selected). "Waiting" is selected by default.
     @State private var selectedFilters: Set<FilterStatus> = [.waiting]
     
     var body: some View {
@@ -48,7 +48,7 @@ struct PrayerListView: View {
                     .padding()
                     .background(Color(uiColor: .systemGroupedBackground))
                     
-                    // MARK: - Filter Buttons (Below the Search Bar)
+                    // MARK: - Filter Buttons
                     HStack(spacing: 4) {
                         ForEach(FilterStatus.allCases, id: \.self) { filter in
                             Button {
@@ -71,15 +71,6 @@ struct PrayerListView: View {
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 8)
-                    
-                    // MARK: - Drag-to-Reorder List (Shown if exact tag match)
-                    if isTagExactMatch {
-                        HStack {
-                            Spacer()
-                            EditButton()
-                                .padding(.trailing, 16)
-                        }
-                    }
                     
                     // MARK: - The Prayers List
                     List {
@@ -105,6 +96,10 @@ struct PrayerListView: View {
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                         }
+                        // Even though we have .onMove declared,
+                        // the EditButton has been removed.
+                        // If you want users to reorder,
+                        // you'll need to provide your own edit mode toggle.
                         .onMove(perform: movePrayer)
                     }
                     .listStyle(.plain)
@@ -163,9 +158,8 @@ extension PrayerListView {
         }
     }
     
-    /// **Key Change**:
     /// 1) Start with `searchManager.filteredPrayers` (already narrowed by tags/title/requests).
-    /// 2) Keep only those that have *no requests* or at least *one request* with a status in `selectedFilters`.
+    /// 2) Keep only those that have no requests or at least one request with a status in `selectedFilters`.
     private func updateReorderablePrayers() {
         // Step 1: All prayers that match the search
         let matching = searchManager.filteredPrayers
@@ -179,7 +173,6 @@ extension PrayerListView {
             }
             
             // If it has requests, keep it only if at least one request's status is in selectedFilters
-            // Compare request.status to the rawValue (e.g. "Waiting", "Fulfilled", etc.)
             for req in requestSet {
                 if let reqStatus = req.status, selectedFilters.map(\.rawValue).contains(reqStatus) {
                     return true
@@ -194,8 +187,7 @@ extension PrayerListView {
     private func movePrayer(from source: IndexSet, to destination: Int) {
         reorderablePrayers.move(fromOffsets: source, toOffset: destination)
         
-        // If the search text is an EXACT match to a tag, we update that tag's order
-        // in descending order (top item => highest order).
+        // If the search text is an EXACT match to a tag, update that tag's order in descending order (top => highest).
         if isTagExactMatch {
             let total = reorderablePrayers.count
             
@@ -203,11 +195,11 @@ extension PrayerListView {
                 let newOrder = Int16(total - idx)  // highest at the top
                 
                 // Find the TagEntity that matches the search text
-                if let tagSet = prayer.tags as? Set<TagEntity> {
-                    if let matchingTag = tagSet.first(where: { $0.tag == searchManager.searchText }) {
-                        matchingTag.order = newOrder
-                        matchingTag.lastModifiedDate = Date()
-                    }
+                if let tagSet = prayer.tags as? Set<TagEntity>,
+                   let matchingTag = tagSet.first(where: { $0.tag == searchManager.searchText }) {
+                    
+                    matchingTag.order = newOrder
+                    matchingTag.lastModifiedDate = Date()
                 }
                 
                 // Optionally update the prayer too
@@ -226,7 +218,7 @@ extension PrayerListView {
     }
 }
 
-// MARK: - Filter Status Enum
+// MARK: - FilterStatus Enum
 /// Example enum with four statuses matching your color scheme.
 /// (Supports multiple selection.)
 enum FilterStatus: String, CaseIterable {
