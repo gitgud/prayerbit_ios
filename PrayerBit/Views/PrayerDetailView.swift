@@ -48,41 +48,34 @@ struct PrayerDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // MARK: Prayer Title
+            // MARK: - Prayer Title
             Text(prayer.title ?? "")
                 .font(.headline)
             
-            Divider()
-            
-            // MARK: Passages
-            if passages.isEmpty {
-                Text("No passages yet.")
-                    .foregroundColor(.secondary)
-            } else {
+            // MARK: - Passages Section
+            if !passages.isEmpty {
+                Divider()
                 ForEach(passages, id: \.self) { passage in
                     Text(passage.passage ?? "Untitled Passage")
                 }
             }
-            
-            Divider()
-            
-            // MARK: Requests
-            if requests.isEmpty {
-                Text("No requests yet.")
-                    .foregroundColor(.secondary)
-            } else {
+
+            // MARK: - Requests Section
+            if !requests.isEmpty {
+                Divider()
                 ForEach(requests, id: \.self) { request in
-                    Text(request.request ?? "Untitled Request")
+                    // Bullet points for each Request
+                    HStack(alignment: .top) {
+                        Text("•")
+                            .padding(.trailing, 4)
+                        Text(request.request ?? "Untitled Request")
+                    }
                 }
             }
 
-            Divider()
-
-            // MARK: Tags (One-to-Many)
-            if tags.isEmpty {
-                Text("No tags yet.")
-                    .foregroundColor(.secondary)
-            } else {
+            // MARK: - Tags Section
+            if !tags.isEmpty {
+                Divider()
                 HStack {
                     ForEach(tags, id: \.self) { tag in
                         Text("#\(tag.tag ?? "Tag")")
@@ -97,41 +90,3 @@ struct PrayerDetailView: View {
     }
 }
 
-// MARK: - Preview
-struct PrayerDetailView_Previews: PreviewProvider {
-    static var previews: some View {
-        let controller = PersistenceController(inMemory: true)
-        let context = controller.container.viewContext
-        
-        // Create a sample Prayer
-        let samplePrayer = PrayerEntity(context: context)
-        samplePrayer.id = UUID()
-        samplePrayer.title = "Pray for Peace"
-        samplePrayer.creationDate = Date().addingTimeInterval(-86400) // 1 day ago
-        samplePrayer.lastModifiedDate = Date()
-        
-        // Create some Requests
-        for i in 1...3 {
-            let newRequest = RequestEntity(context: context)
-            newRequest.id = UUID()
-            newRequest.request = "Request #\(i)"
-            newRequest.creationDate = Date().addingTimeInterval(Double(-i) * 3600)
-            newRequest.lastModifiedDate = Date()
-            newRequest.prayer = samplePrayer
-        }
-        
-        // Create some Tags (each Tag is bound to this single Prayer)
-        for tagText in ["Family", "Urgent", "Celebration"] {
-            let newTag = TagEntity(context: context)
-            newTag.id = UUID()
-            newTag.tag = tagText
-            // One-to-Many means we simply assign the prayer
-            newTag.prayer = samplePrayer
-        }
-        
-        return NavigationView {
-            PrayerDetailView(prayer: samplePrayer)
-                .environment(\.managedObjectContext, context)
-        }
-    }
-}
