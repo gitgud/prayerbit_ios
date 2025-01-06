@@ -26,7 +26,7 @@ struct PrayerListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
+                // Gray background behind everything
                 Color(uiColor: .systemGroupedBackground)
                     .edgesIgnoringSafeArea(.all)
                 
@@ -55,6 +55,7 @@ struct PrayerListView: View {
                                 toggleFilter(filter)
                             } label: {
                                 Text(filter.rawValue)
+                                    // Bold if selected
                                     .fontWeight(selectedFilters.contains(filter) ? .bold : .regular)
                                     .foregroundColor(.white)
                                     .font(.callout)
@@ -70,19 +71,22 @@ struct PrayerListView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 8)
                     
-                    // MARK: - Prayers List
+                    // MARK: - The Prayers List
                     List {
                         ForEach(reorderablePrayers, id: \.self) { prayer in
                             ZStack {
+                                // The "bubble" styled view
                                 PrayerDetailView(prayer: prayer)
                                     .padding()
                                     .background(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                                             .fill(Color(.systemBackground))
-                                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                            .shadow(color: .black.opacity(0.1),
+                                                    radius: 4, x: 0, y: 2)
                                     )
                                     .padding(.vertical, 4)
                                 
+                                // Invisible NavigationLink to remove arrow on the right
                                 NavigationLink(destination: PrayerEditView(prayer: prayer)) {
                                     EmptyView()
                                 }
@@ -96,9 +100,6 @@ struct PrayerListView: View {
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .background(Color(uiColor: .systemGroupedBackground))
-                    
-                    // MARK: - Bottom Menu
-                    MenuView()
                 }
             }
             .navigationBarHidden(true)
@@ -106,7 +107,7 @@ struct PrayerListView: View {
                 // Provide the context to the manager & force a fetch
                 searchManager.setContext(viewContext)
                 
-                // Optionally focus on the search bar automatically
+                // Optional: Focus on the search bar automatically
                 DispatchQueue.main.async {
                     searchIsFocused = true
                 }
@@ -151,11 +152,11 @@ extension PrayerListView {
     
     private func updateReorderablePrayers() {
         let matching = searchManager.filteredPrayers
+        
         reorderablePrayers = matching.filter { prayer in
             guard let requestSet = prayer.requests as? Set<RequestEntity>, !requestSet.isEmpty else {
                 return true
             }
-            // Keep prayer if at least one request matches the selected filters
             for req in requestSet {
                 if let reqStatus = req.status,
                    selectedFilters.map(\.rawValue).contains(reqStatus) {
@@ -169,13 +170,11 @@ extension PrayerListView {
     private func movePrayer(from source: IndexSet, to destination: Int) {
         reorderablePrayers.move(fromOffsets: source, toOffset: destination)
         
-        // If search text exactly matches a TagEntity, reorder that tag
         if isTagExactMatch {
             let total = reorderablePrayers.count
             for (idx, prayer) in reorderablePrayers.enumerated() {
                 let newOrder = Int16(total - idx)
                 
-                // Find the TagEntity that matches search text
                 if let tagSet = prayer.tags as? Set<TagEntity>,
                    let matchingTag = tagSet.first(where: { $0.tag == searchManager.searchText }) {
                     
@@ -185,14 +184,11 @@ extension PrayerListView {
                 
                 prayer.lastModifiedDate = Date()
             }
-            
             do {
                 try viewContext.save()
             } catch {
                 print("Error saving after reorder: \(error)")
             }
-            
-            // Refresh search if needed
             searchManager.refresh()
         }
     }
