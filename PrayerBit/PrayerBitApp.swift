@@ -15,7 +15,7 @@ struct PrayerBitApp: App {
         WindowGroup {
             // Instead of `PrayerListView()`,
             // we show our new parent container, `MainAppView()`.
-            MainAppView()
+                MainAppView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
     }
