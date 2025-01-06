@@ -26,7 +26,7 @@ struct PrayerListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Gray background behind everything
+                // Background
                 Color(uiColor: .systemGroupedBackground)
                     .edgesIgnoringSafeArea(.all)
                 
@@ -55,13 +55,11 @@ struct PrayerListView: View {
                                 toggleFilter(filter)
                             } label: {
                                 Text(filter.rawValue)
-                                    // Bold if selected
                                     .fontWeight(selectedFilters.contains(filter) ? .bold : .regular)
                                     .foregroundColor(.white)
                                     .font(.callout)
                                     .padding(.vertical, 8)
                                     .frame(maxWidth: .infinity)
-                                    // Full color if selected, slightly faded if not
                                     .background(
                                         filter.color.opacity(selectedFilters.contains(filter) ? 1.0 : 0.6)
                                     )
@@ -72,22 +70,19 @@ struct PrayerListView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 8)
                     
-                    // MARK: - The Prayers List
+                    // MARK: - Prayers List
                     List {
                         ForEach(reorderablePrayers, id: \.self) { prayer in
                             ZStack {
-                                // The "bubble" styled view
                                 PrayerDetailView(prayer: prayer)
                                     .padding()
                                     .background(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                                             .fill(Color(.systemBackground))
-                                            .shadow(color: .black.opacity(0.1),
-                                                    radius: 4, x: 0, y: 2)
+                                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                                     )
                                     .padding(.vertical, 4)
                                 
-                                // Invisible NavigationLink to remove arrow on the right
                                 NavigationLink(destination: PrayerEditView(prayer: prayer)) {
                                     EmptyView()
                                 }
@@ -96,15 +91,14 @@ struct PrayerListView: View {
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                         }
-                        // Even though we have .onMove declared,
-                        // the EditButton has been removed.
-                        // If you want users to reorder,
-                        // you'll need to provide your own edit mode toggle.
                         .onMove(perform: movePrayer)
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .background(Color(uiColor: .systemGroupedBackground))
+                    
+                    // MARK: - Bottom Menu
+                    MenuView()
                 }
             }
             .navigationBarHidden(true)
@@ -112,12 +106,11 @@ struct PrayerListView: View {
                 // Provide the context to the manager & force a fetch
                 searchManager.setContext(viewContext)
                 
-                // Optional: Focus on the search bar automatically
+                // Optionally focus on the search bar automatically
                 DispatchQueue.main.async {
                     searchIsFocused = true
                 }
             }
-            // Whenever the search results change, we re-filter them based on our buttons
             .onChange(of: searchManager.filteredPrayers) { _ in
                 updateReorderablePrayers()
             }
@@ -130,7 +123,6 @@ struct PrayerListView: View {
 
 // MARK: - Private Helpers
 extension PrayerListView {
-    /// Toggle filter selection (on/off).
     private func toggleFilter(_ filter: FilterStatus) {
         if selectedFilters.contains(filter) {
             selectedFilters.remove(filter)
@@ -140,7 +132,6 @@ extension PrayerListView {
         updateReorderablePrayers()
     }
     
-    /// Whether searchManager.searchText is an EXACT match to a TagEntity in Core Data
     private var isTagExactMatch: Bool {
         let trimmed = searchManager.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
@@ -158,43 +149,33 @@ extension PrayerListView {
         }
     }
     
-    /// 1) Start with `searchManager.filteredPrayers` (already narrowed by tags/title/requests).
-    /// 2) Keep only those that have no requests or at least one request with a status in `selectedFilters`.
     private func updateReorderablePrayers() {
-        // Step 1: All prayers that match the search
         let matching = searchManager.filteredPrayers
-        
-        // Step 2: Filter by request status or "no requests"
         reorderablePrayers = matching.filter { prayer in
-            // If no requests, it should appear.
             guard let requestSet = prayer.requests as? Set<RequestEntity>, !requestSet.isEmpty else {
-                // No requests => keep this prayer
                 return true
             }
-            
-            // If it has requests, keep it only if at least one request's status is in selectedFilters
+            // Keep prayer if at least one request matches the selected filters
             for req in requestSet {
-                if let reqStatus = req.status, selectedFilters.map(\.rawValue).contains(reqStatus) {
+                if let reqStatus = req.status,
+                   selectedFilters.map(\.rawValue).contains(reqStatus) {
                     return true
                 }
             }
-            // If none of its requests matched the selected statuses
             return false
         }
     }
     
-    /// Called by .onMove after the user drags a row
     private func movePrayer(from source: IndexSet, to destination: Int) {
         reorderablePrayers.move(fromOffsets: source, toOffset: destination)
         
-        // If the search text is an EXACT match to a tag, update that tag's order in descending order (top => highest).
+        // If search text exactly matches a TagEntity, reorder that tag
         if isTagExactMatch {
             let total = reorderablePrayers.count
-            
             for (idx, prayer) in reorderablePrayers.enumerated() {
-                let newOrder = Int16(total - idx)  // highest at the top
+                let newOrder = Int16(total - idx)
                 
-                // Find the TagEntity that matches the search text
+                // Find the TagEntity that matches search text
                 if let tagSet = prayer.tags as? Set<TagEntity>,
                    let matchingTag = tagSet.first(where: { $0.tag == searchManager.searchText }) {
                     
@@ -202,7 +183,6 @@ extension PrayerListView {
                     matchingTag.lastModifiedDate = Date()
                 }
                 
-                // Optionally update the prayer too
                 prayer.lastModifiedDate = Date()
             }
             
@@ -212,20 +192,17 @@ extension PrayerListView {
                 print("Error saving after reorder: \(error)")
             }
             
-            // Re-run the search if you want the new order to be reflected
+            // Refresh search if needed
             searchManager.refresh()
         }
     }
 }
 
-// MARK: - FilterStatus Enum
-/// Example enum with four statuses matching your color scheme.
-/// (Supports multiple selection.)
 enum FilterStatus: String, CaseIterable {
-    case waiting    = "Waiting"
-    case fulfilled  = "Fulfilled"
-    case rejected   = "Rejected"
-    case unknown    = "Unknown"
+    case waiting   = "Waiting"
+    case fulfilled = "Fulfilled"
+    case rejected  = "Rejected"
+    case unknown   = "Unknown"
     
     var color: Color {
         switch self {
