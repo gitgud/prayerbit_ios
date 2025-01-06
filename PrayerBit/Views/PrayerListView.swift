@@ -5,7 +5,6 @@
 //  Created by kale on 12/25/24.
 //
 
-
 import SwiftUI
 import CoreData
 
@@ -18,7 +17,11 @@ struct PrayerListView: View {
     // We store a local copy of the prayers for drag-to-reorder
     @State private var reorderablePrayers: [PrayerEntity] = []
     
+    // Whether the search field is focused
     @FocusState private var searchIsFocused: Bool
+    
+    // MARK: - A set of statuses (so multiple can be selected). "Waiting" is selected by default.
+    @State private var selectedFilters: Set<FilterStatus> = [.waiting]
     
     var body: some View {
         NavigationView {
@@ -28,7 +31,8 @@ struct PrayerListView: View {
                     .edgesIgnoringSafeArea(.all)
                 
                 VStack(spacing: 0) {
-                    // MARK: - Top Search Bar
+                    
+                    // MARK: - Top Search Bar + Plus Button
                     HStack {
                         TextField("Search...", text: $searchManager.searchText)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -44,9 +48,32 @@ struct PrayerListView: View {
                     .padding()
                     .background(Color(uiColor: .systemGroupedBackground))
                     
+                    // MARK: - Filter Buttons (Below the Search Bar)
+                    HStack(spacing: 4) {
+                        ForEach(FilterStatus.allCases, id: \.self) { filter in
+                            Button {
+                                toggleFilter(filter)
+                            } label: {
+                                Text(filter.rawValue)
+                                    // Bold if selected
+                                    .fontWeight(selectedFilters.contains(filter) ? .bold : .regular)
+                                    .foregroundColor(.white)
+                                    .font(.callout)
+                                    .padding(.vertical, 8)
+                                    .frame(maxWidth: .infinity)
+                                    // Full color if selected, slightly faded if not
+                                    .background(
+                                        filter.color.opacity(selectedFilters.contains(filter) ? 1.0 : 0.6)
+                                    )
+                                    .cornerRadius(6)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                    
                     // MARK: - Drag-to-Reorder List (Shown if exact tag match)
                     if isTagExactMatch {
-                        // The EditButton toggles the built-in edit mode to enable .onMove
                         HStack {
                             Spacer()
                             EditButton()
@@ -54,8 +81,8 @@ struct PrayerListView: View {
                         }
                     }
                     
+                    // MARK: - The Prayers List
                     List {
-                        // Bind to reorderablePrayers so we can reorder them with .onMove
                         ForEach(reorderablePrayers, id: \.self) { prayer in
                             ZStack {
                                 // The "bubble" styled view
@@ -95,7 +122,7 @@ struct PrayerListView: View {
                     searchIsFocused = true
                 }
             }
-            // Sync our reorderablePrayers whenever the filtered prayers change
+            // Whenever the search results change, we re-filter them based on our buttons
             .onChange(of: searchManager.filteredPrayers) { _ in
                 updateReorderablePrayers()
             }
@@ -108,6 +135,16 @@ struct PrayerListView: View {
 
 // MARK: - Private Helpers
 extension PrayerListView {
+    /// Toggle filter selection (on/off).
+    private func toggleFilter(_ filter: FilterStatus) {
+        if selectedFilters.contains(filter) {
+            selectedFilters.remove(filter)
+        } else {
+            selectedFilters.insert(filter)
+        }
+        updateReorderablePrayers()
+    }
+    
     /// Whether searchManager.searchText is an EXACT match to a TagEntity in Core Data
     private var isTagExactMatch: Bool {
         let trimmed = searchManager.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -126,9 +163,31 @@ extension PrayerListView {
         }
     }
     
-    /// Updates our local reorderable array based on searchManager's filteredPrayers
+    /// **Key Change**:
+    /// 1) Start with `searchManager.filteredPrayers` (already narrowed by tags/title/requests).
+    /// 2) Keep only those that have *no requests* or at least *one request* with a status in `selectedFilters`.
     private func updateReorderablePrayers() {
-        reorderablePrayers = searchManager.filteredPrayers
+        // Step 1: All prayers that match the search
+        let matching = searchManager.filteredPrayers
+        
+        // Step 2: Filter by request status or "no requests"
+        reorderablePrayers = matching.filter { prayer in
+            // If no requests, it should appear.
+            guard let requestSet = prayer.requests as? Set<RequestEntity>, !requestSet.isEmpty else {
+                // No requests => keep this prayer
+                return true
+            }
+            
+            // If it has requests, keep it only if at least one request's status is in selectedFilters
+            // Compare request.status to the rawValue (e.g. "Waiting", "Fulfilled", etc.)
+            for req in requestSet {
+                if let reqStatus = req.status, selectedFilters.map(\.rawValue).contains(reqStatus) {
+                    return true
+                }
+            }
+            // If none of its requests matched the selected statuses
+            return false
+        }
     }
     
     /// Called by .onMove after the user drags a row
@@ -163,6 +222,25 @@ extension PrayerListView {
             
             // Re-run the search if you want the new order to be reflected
             searchManager.refresh()
+        }
+    }
+}
+
+// MARK: - Filter Status Enum
+/// Example enum with four statuses matching your color scheme.
+/// (Supports multiple selection.)
+enum FilterStatus: String, CaseIterable {
+    case waiting    = "Waiting"
+    case fulfilled  = "Fulfilled"
+    case rejected   = "Rejected"
+    case unknown    = "Unknown"
+    
+    var color: Color {
+        switch self {
+        case .waiting:   return .yellow
+        case .fulfilled: return .green
+        case .rejected:  return .red
+        case .unknown:   return .gray
         }
     }
 }
