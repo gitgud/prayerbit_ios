@@ -16,6 +16,9 @@ struct MainAppView: View {
     // Tracks if the keyboard/text field is active (focused)
     @State private var isKeyboardActive: Bool = false
     
+    // Whether or not to hide the bottom menu (used by PrayerEditView)
+    @State private var hideMenu: Bool = false
+    
     enum Screen {
         case search
         case account
@@ -26,15 +29,20 @@ struct MainAppView: View {
             // Show one child or the other
             switch currentScreen {
             case .search:
-                // Pass the binding down, so we know when a text field is focused
-                PrayerListView(isKeyboardActive: $isKeyboardActive)
+                // Pass the bindings down, so we know when a text field is focused
+                // and when we need to hide the menu entirely.
+                PrayerListView(
+                    isKeyboardActive: $isKeyboardActive,
+                    hideMenu: $hideMenu
+                )
+                
             case .account:
                 AccountView()
             }
             
-            // The custom bottom menu at the very bottom.
-            // Hide it if the user is currently typing in a text field.
-            if !isKeyboardActive {
+            // The custom bottom menu at the very bottom
+            // Hide it if the user is typing OR if PrayerEditView says to hide it.
+            if !isKeyboardActive && !hideMenu {
                 MenuView(
                     onSearchTapped: { currentScreen = .search },
                     onAccountTapped: { currentScreen = .account }

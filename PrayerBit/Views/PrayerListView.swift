@@ -23,8 +23,11 @@ struct PrayerListView: View {
     // A set of statuses (so multiple can be selected). "Waiting" is selected by default.
     @State private var selectedFilters: Set<FilterStatus> = [.waiting]
     
-    // Binding passed from MainAppView to let us know if the keyboard is up.
+    // Binding passed from MainAppView that tells us whether the keyboard is up
     @Binding var isKeyboardActive: Bool
+    
+    // Binding that tells us whether or not to hide the bottom menu
+    @Binding var hideMenu: Bool
     
     var body: some View {
         NavigationView {
@@ -97,7 +100,8 @@ struct PrayerListView: View {
                                 NavigationLink(
                                     destination: PrayerEditView(
                                         prayer: prayer,
-                                        isKeyboardActive: $isKeyboardActive
+                                        isKeyboardActive: $isKeyboardActive,
+                                        hideMenu: $hideMenu
                                     )
                                 ) {
                                     EmptyView()

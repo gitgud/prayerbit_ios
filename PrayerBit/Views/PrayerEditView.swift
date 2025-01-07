@@ -22,6 +22,9 @@ struct PrayerEditView: View {
     // Tells MainAppView if any text field is currently focused
     @Binding var isKeyboardActive: Bool
     
+    // If true, the bottom menu is hidden. We want it hidden as long as this View is presented.
+    @Binding var hideMenu: Bool
+    
     var body: some View {
         Form {
             // MARK: Prayer
@@ -173,6 +176,13 @@ struct PrayerEditView: View {
         .onChange(of: focusedRequestID) { _ in updateKeyboardActive() }
         .onChange(of: focusedPassageID) { _ in updateKeyboardActive() }
         .onChange(of: focusedTagID) { _ in updateKeyboardActive() }
+        // Hide the menu while this view is on screen
+        .onAppear {
+            hideMenu = true
+        }
+        .onDisappear {
+            hideMenu = false
+        }
     }
 }
 
@@ -257,9 +267,8 @@ extension PrayerEditView {
 extension PrayerEditView {
     private func sortedRequests() -> [RequestEntity] {
         guard let requestSet = prayer.requests as? Set<RequestEntity> else { return [] }
-        // Sort by status order first, then by creation date (or however you prefer).
+        // Sort by status order first, then by creation date.
         // The order is: Waiting(0), Fulfilled(1), Rejected(2), Unknown(3)
-        
         return requestSet.sorted { left, right in
             let leftOrder = sortOrder(for: left)
             let rightOrder = sortOrder(for: right)
