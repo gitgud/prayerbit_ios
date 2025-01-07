@@ -19,6 +19,9 @@ struct PrayerEditView: View {
     @FocusState private var focusedPassageID: NSManagedObjectID?
     @FocusState private var focusedTagID: NSManagedObjectID?
     
+    // Tells MainAppView if any text field is currently focused
+    @Binding var isKeyboardActive: Bool
+    
     var body: some View {
         Form {
             // MARK: Prayer
@@ -166,6 +169,22 @@ struct PrayerEditView: View {
                 }
             }
         }
+        // Whenever a focus changes, see if anything is focused, and update isKeyboardActive
+        .onChange(of: focusedRequestID) { _ in updateKeyboardActive() }
+        .onChange(of: focusedPassageID) { _ in updateKeyboardActive() }
+        .onChange(of: focusedTagID) { _ in updateKeyboardActive() }
+    }
+}
+
+// MARK: - Helpers for Focus
+extension PrayerEditView {
+    private func updateKeyboardActive() {
+        // If any field is focused, we consider the keyboard "active."
+        isKeyboardActive = (
+            focusedRequestID != nil ||
+            focusedPassageID != nil ||
+            focusedTagID != nil
+        )
     }
 }
 

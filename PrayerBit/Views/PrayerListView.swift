@@ -23,6 +23,9 @@ struct PrayerListView: View {
     // A set of statuses (so multiple can be selected). "Waiting" is selected by default.
     @State private var selectedFilters: Set<FilterStatus> = [.waiting]
     
+    // Binding passed from MainAppView to let us know if the keyboard is up.
+    @Binding var isKeyboardActive: Bool
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -38,6 +41,10 @@ struct PrayerListView: View {
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .frame(maxWidth: .infinity)
                             .focused($searchIsFocused)
+                            // Whenever search focus changes, update isKeyboardActive.
+                            .onChange(of: searchIsFocused) { newValue in
+                                isKeyboardActive = newValue
+                            }
                         
                         NavigationLink(destination: PrayerCreateView()) {
                             Image(systemName: "plus")
@@ -87,7 +94,12 @@ struct PrayerListView: View {
                                     .padding(.vertical, 4)
                                 
                                 // Invisible NavigationLink to remove arrow on the right
-                                NavigationLink(destination: PrayerEditView(prayer: prayer)) {
+                                NavigationLink(
+                                    destination: PrayerEditView(
+                                        prayer: prayer,
+                                        isKeyboardActive: $isKeyboardActive
+                                    )
+                                ) {
                                     EmptyView()
                                 }
                                 .opacity(0)

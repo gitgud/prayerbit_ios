@@ -5,7 +5,6 @@
 //  Created by kale on 1/6/25.
 //
 
-
 import SwiftUI
 
 /// The parent container that switches between PrayerListView and AccountView.
@@ -13,6 +12,9 @@ import SwiftUI
 struct MainAppView: View {
     // Tracks which screen is active
     @State private var currentScreen: Screen = .search
+    
+    // Tracks if the keyboard/text field is active (focused)
+    @State private var isKeyboardActive: Bool = false
     
     enum Screen {
         case search
@@ -24,16 +26,20 @@ struct MainAppView: View {
             // Show one child or the other
             switch currentScreen {
             case .search:
-                PrayerListView()
+                // Pass the binding down, so we know when a text field is focused
+                PrayerListView(isKeyboardActive: $isKeyboardActive)
             case .account:
                 AccountView()
             }
             
-            // The custom bottom menu at the very bottom
-            MenuView(
-                onSearchTapped: { currentScreen = .search },
-                onAccountTapped: { currentScreen = .account }
-            )
+            // The custom bottom menu at the very bottom.
+            // Hide it if the user is currently typing in a text field.
+            if !isKeyboardActive {
+                MenuView(
+                    onSearchTapped: { currentScreen = .search },
+                    onAccountTapped: { currentScreen = .account }
+                )
+            }
         }
     }
 }
