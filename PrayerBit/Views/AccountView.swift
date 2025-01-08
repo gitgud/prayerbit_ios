@@ -7,46 +7,103 @@
 
 import SwiftUI
 import CoreData
+import UniformTypeIdentifiers
 
 struct AccountView: View {
     @Environment(\.managedObjectContext) private var viewContext
     
-    // Fetch all PrayerEntity objects (or you can fetch only the ones you need).
+    // Fetch all PrayerEntity objects
     @FetchRequest(
         entity: PrayerEntity.entity(),
-        sortDescriptors: [] // Provide sort descriptors if desired
+        sortDescriptors: []
     ) private var prayers: FetchedResults<PrayerEntity>
     
-    // State variables to control the share sheet
+    // MARK: - State for export
     @State private var showShareSheet = false
     @State private var shareItems: [Any] = []
     
+    // MARK: - State for import
+    @State private var showFileImporter = false
+    
     var body: some View {
         VStack(spacing: 20) {
-            Text("Export your data to JSON")
+            Text("Export / Import your Prayer Data (JSON)")
                 .font(.headline)
             
-            // Replace the old "Export" text button with a share icon button
+            // Export to JSON
             Button(action: exportToJson) {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.title)
-                    .foregroundColor(.blue)
+                HStack {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("Export")
+                }
+                .font(.title3)
+                .foregroundColor(.blue)
             }
             .padding()
+            
+            // Import from JSON
+            Button(action: { showFileImporter = true }) {
+                HStack {
+                    Image(systemName: "square.and.arrow.down")
+                    Text("Import")
+                }
+                .font(.title3)
+                .foregroundColor(.blue)
+            }
+            .padding()
+            // SwiftUI’s FileImporter
+            .fileImporter(
+                isPresented: $showFileImporter,
+                allowedContentTypes: [.json],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    if let url = urls.first {
+                        // 1) Access security scope if needed
+                        if url.startAccessingSecurityScopedResource() {
+                            defer { url.stopAccessingSecurityScopedResource() }
+                            
+                            // 2) (Optional) Copy the file to the app’s Documents directory
+                            //    for permanent access. If you only need to read it once, skip this step.
+                            let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                            let destinationURL = documentsURL.appendingPathComponent(url.lastPathComponent)
+                            
+                            do {
+                                // Copy the file into your app container
+                                let data = try Data(contentsOf: url)
+                                try data.write(to: destinationURL, options: .atomic)
+                                
+                                // Now import from the local copy (or directly from 'url' if you prefer)
+                                importFromJson(fileURL: destinationURL)
+                            } catch {
+                                print("Error copying or importing file: \(error)")
+                            }
+                            
+                        } else {
+                            print("Could not access the file’s security-scoped resource.")
+                        }
+                    }
+                case .failure(let error):
+                    print("FileImporter error: \(error)")
+                }
+            }
         }
         .padding()
         
-        // Present a share sheet (using a wrapper) when showShareSheet is true
+        // Share sheet
         .sheet(isPresented: $showShareSheet) {
             ActivityViewControllerWrapper(activityItems: shareItems)
         }
     }
     
-    /// Gathers all `PrayerEntity` data, encodes to JSON, writes to a temp file, then triggers share sheet.
+    // MARK: - Export
+    
+    /// Gathers all PrayerEntity data, encodes to JSON, writes to a temp file, then triggers share sheet.
     private func exportToJson() {
         // 1) Convert all fetched objects to export structs
         let prayerExportList = prayers.map { $0.toExportStruct() }
-
+        
         // 2) Encode them to JSON
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -65,6 +122,65 @@ struct AccountView: View {
             
         } catch {
             print("Error encoding or writing JSON: \(error)")
+        }
+    }
+    
+    // MARK: - Import
+    
+    /// Reads JSON from the provided file URL, decodes, and inserts into Core Data.
+    private func importFromJson(fileURL: URL) {
+        do {
+            let data = try Data(contentsOf: fileURL)
+            
+            // Decode into array of PrayerExport
+            let importedPrayers = try JSONDecoder().decode([PrayerExport].self, from: data)
+            
+            for prayerExport in importedPrayers {
+                // Create a new PrayerEntity (or find existing by ID and update, if desired)
+                let newPrayer = PrayerEntity(context: viewContext)
+                newPrayer.id = prayerExport.id
+                newPrayer.title = prayerExport.title
+                newPrayer.creationDate = prayerExport.creationDate
+                newPrayer.lastModifiedDate = prayerExport.lastModifiedDate
+                
+                // Passages
+                for passageExport in prayerExport.passages {
+                    let newPassage = PassageEntity(context: viewContext)
+                    newPassage.id = passageExport.id
+                    newPassage.passage = passageExport.passage
+                    newPassage.creationDate = passageExport.creationDate
+                    newPassage.lastModifiedDate = passageExport.lastModifiedDate
+                    newPassage.prayer = newPrayer
+                }
+                
+                // Requests
+                for requestExport in prayerExport.requests {
+                    let newRequest = RequestEntity(context: viewContext)
+                    newRequest.id = requestExport.id
+                    newRequest.request = requestExport.request
+                    newRequest.status = requestExport.status ?? ""
+                    newRequest.creationDate = requestExport.creationDate
+                    newRequest.lastModifiedDate = requestExport.lastModifiedDate
+                    newRequest.prayer = newPrayer
+                }
+                
+                // Tags
+                for tagExport in prayerExport.tags {
+                    let newTag = TagEntity(context: viewContext)
+                    newTag.id = tagExport.id
+                    newTag.tag = tagExport.tag
+                    newTag.order = tagExport.order
+                    newTag.lastModifiedDate = tagExport.lastModifiedDate
+                    newTag.prayer = newPrayer
+                }
+            }
+            
+            // Save context
+            try viewContext.save()
+            print("Import Success: \(importedPrayers.count) prayers imported.")
+            
+        } catch {
+            print("JSON import failed: \(error)")
         }
     }
 }
