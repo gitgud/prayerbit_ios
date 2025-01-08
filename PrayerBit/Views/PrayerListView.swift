@@ -214,7 +214,7 @@ enum FilterStatus: String, CaseIterable {
     case waiting   = "Waiting"
     case fulfilled = "Fulfilled"
     case rejected  = "Rejected"
-    case unknown   = "Unknown"
+    case unknown   = "?"
     
     var color: Color {
         switch self {
