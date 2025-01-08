@@ -60,26 +60,23 @@ struct AccountView: View {
                 switch result {
                 case .success(let urls):
                     if let url = urls.first {
-                        // 1) Access security scope if needed
+                        // 1) Access security scope
                         if url.startAccessingSecurityScopedResource() {
                             defer { url.stopAccessingSecurityScopedResource() }
                             
-                            // 2) (Optional) Copy the file to the app’s Documents directory
-                            //    for permanent access. If you only need to read it once, skip this step.
+                            // 2) Copy the file to the app’s Documents directory if you want a permanent copy
                             let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                             let destinationURL = documentsURL.appendingPathComponent(url.lastPathComponent)
                             
                             do {
-                                // Copy the file into your app container
                                 let data = try Data(contentsOf: url)
                                 try data.write(to: destinationURL, options: .atomic)
                                 
-                                // Now import from the local copy (or directly from 'url' if you prefer)
+                                // Now import from the local copy
                                 importFromJson(fileURL: destinationURL)
                             } catch {
                                 print("Error copying or importing file: \(error)")
                             }
-                            
                         } else {
                             print("Could not access the file’s security-scoped resource.")
                         }
@@ -88,10 +85,32 @@ struct AccountView: View {
                     print("FileImporter error: \(error)")
                 }
             }
+            
+            // Delete all data in Core Data
+            Button("Delete Data") {
+                deleteAllData()
+            }
+            .font(.title3)
+            .foregroundColor(.red)
+            .padding()
         }
-        .padding()
-        
-        // Share sheet
+        // Add bottom toolbar with two placeholder buttons
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Button("Search") {
+                    // TODO: Implement search action
+                    print("Search tapped")
+                }
+                
+                Spacer()
+                
+                Button("Account") {
+                    // TODO: Implement account action
+                    print("Account tapped")
+                }
+            }
+        }
+        // Present a share sheet (using a wrapper) when showShareSheet is true
         .sheet(isPresented: $showShareSheet) {
             ActivityViewControllerWrapper(activityItems: shareItems)
         }
@@ -136,7 +155,7 @@ struct AccountView: View {
             let importedPrayers = try JSONDecoder().decode([PrayerExport].self, from: data)
             
             for prayerExport in importedPrayers {
-                // Create a new PrayerEntity (or find existing by ID and update, if desired)
+                // Create a new PrayerEntity
                 let newPrayer = PrayerEntity(context: viewContext)
                 newPrayer.id = prayerExport.id
                 newPrayer.title = prayerExport.title
@@ -181,6 +200,39 @@ struct AccountView: View {
             
         } catch {
             print("JSON import failed: \(error)")
+        }
+    }
+    
+    // MARK: - Delete All Data
+    
+    /// Deletes all data by performing a typed fetch for each entity and deleting fetched objects.
+    private func deleteAllData() {
+        do {
+            // PrayerEntity
+            let prayerFetch: NSFetchRequest<PrayerEntity> = PrayerEntity.fetchRequest()
+            let prayerObjects = try viewContext.fetch(prayerFetch)
+            prayerObjects.forEach { viewContext.delete($0) }
+            
+            // PassageEntity
+            let passageFetch: NSFetchRequest<PassageEntity> = PassageEntity.fetchRequest()
+            let passageObjects = try viewContext.fetch(passageFetch)
+            passageObjects.forEach { viewContext.delete($0) }
+            
+            // RequestEntity
+            let requestFetch: NSFetchRequest<RequestEntity> = RequestEntity.fetchRequest()
+            let requestObjects = try viewContext.fetch(requestFetch)
+            requestObjects.forEach { viewContext.delete($0) }
+            
+            // TagEntity
+            let tagFetch: NSFetchRequest<TagEntity> = TagEntity.fetchRequest()
+            let tagObjects = try viewContext.fetch(tagFetch)
+            tagObjects.forEach { viewContext.delete($0) }
+            
+            // Save context
+            try viewContext.save()
+            print("All data has been deleted.")
+        } catch {
+            print("Failed to delete data: \(error)")
         }
     }
 }
