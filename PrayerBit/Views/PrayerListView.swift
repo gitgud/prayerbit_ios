@@ -5,6 +5,13 @@
 //  Created by kale on 12/25/24.
 //
 
+//
+//  PrayerListView.swift
+//  PrayerBit
+//
+//  Created by kale on 12/25/24.
+//
+
 import SwiftUI
 import CoreData
 
@@ -87,14 +94,15 @@ struct PrayerListView: View {
                             ZStack {
                                 // The "bubble" styled view
                                 PrayerDetailView(prayer: prayer)
-                                    .padding()
+                                    .padding(1)
                                     .background(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                                             .fill(Color(.systemBackground))
                                             .shadow(color: .black.opacity(0.1),
                                                     radius: 4, x: 0, y: 2)
                                     )
-                                    .padding(.vertical, 4)
+                                    // Reduce vertical padding from 4 to 2
+                                    .padding(.vertical, 0)
 
                                 // Invisible NavigationLink to remove arrow on the right
                                 NavigationLink(
@@ -122,7 +130,7 @@ struct PrayerListView: View {
             .onAppear {
                 // Provide the context to the manager & force a fetch
                 searchManager.setContext(viewContext)
-
+                
                 // Optional: Focus on the search bar automatically
                 DispatchQueue.main.async {
                     searchIsFocused = true
