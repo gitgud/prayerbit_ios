@@ -5,72 +5,50 @@
 //  Created by kale on 12/25/24.
 //
 
-
 import SwiftUI
 import CoreData
 
-// MARK: - FilterStatus Enum
-enum FilterStatus: String, CaseIterable {
-    case waiting   = "Waiting"
-    case fulfilled = "Fulfilled"
-    case rejected  = "Rejected"
-    case unknown   = "?"
-    
-    var color: Color {
-        switch self {
-        case .waiting:   return .yellow
-        case .fulfilled: return .green
-        case .rejected:  return .red
-        case .unknown:   return .gray
-        }
-    }
-}
-
 struct PrayerListView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    
+
     // Our custom manager that holds the search text and the resulting array
     @StateObject private var searchManager = PrayerSearchManager()
-    
+
     // We store a local copy of the prayers for drag-to-reorder
     @State private var reorderablePrayers: [PrayerEntity] = []
-    
-    // Whether the search field is focused. Setting this to false dismisses the keyboard.
+
+    // Whether the search field is focused
     @FocusState private var searchIsFocused: Bool
-    
+
     // A set of statuses (so multiple can be selected). "Waiting" is selected by default.
     @State private var selectedFilters: Set<FilterStatus> = [.waiting]
-    
+
     // Binding passed from MainAppView that tells us whether the keyboard is up
     @Binding var isKeyboardActive: Bool
-    
+
     // Binding that tells us whether or not to hide the bottom menu
     @Binding var hideMenu: Bool
-    
+
     var body: some View {
         NavigationView {
             ZStack {
-                // Background that dismisses keyboard upon tap
+                // Gray background behind everything
                 Color(uiColor: .systemGroupedBackground)
                     .edgesIgnoringSafeArea(.all)
-                    .contentShape(Rectangle())  // Allows tap detection on empty space
-                    .onTapGesture {
-                        searchIsFocused = false
-                    }
-                
+
                 VStack(spacing: 0) {
-                    
+
                     // MARK: - Top Search Bar + Plus Button
                     HStack {
                         TextField("Search...", text: $searchManager.searchText)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .frame(maxWidth: .infinity)
                             .focused($searchIsFocused)
-                            // Keep track of whether the keyboard is up
+                            // Whenever search focus changes, update isKeyboardActive.
                             .onChange(of: searchIsFocused) { newValue in
                                 isKeyboardActive = newValue
                             }
-                        
+
                         NavigationLink(destination: PrayerCreateView()) {
                             Image(systemName: "plus")
                                 .font(.title2)
@@ -79,7 +57,7 @@ struct PrayerListView: View {
                     }
                     .padding()
                     .background(Color(uiColor: .systemGroupedBackground))
-                    
+
                     // MARK: - Filter Buttons
                     HStack(spacing: 4) {
                         ForEach(FilterStatus.allCases, id: \.self) { filter in
@@ -87,6 +65,7 @@ struct PrayerListView: View {
                                 toggleFilter(filter)
                             } label: {
                                 Text(filter.rawValue)
+                                    // Bold if selected
                                     .fontWeight(selectedFilters.contains(filter) ? .bold : .regular)
                                     .foregroundColor(.white)
                                     .font(.callout)
@@ -101,7 +80,7 @@ struct PrayerListView: View {
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 8)
-                    
+
                     // MARK: - The Prayers List
                     List {
                         ForEach(reorderablePrayers, id: \.self) { prayer in
@@ -116,7 +95,7 @@ struct PrayerListView: View {
                                                     radius: 4, x: 0, y: 2)
                                     )
                                     .padding(.vertical, 4)
-                                
+
                                 // Invisible NavigationLink to remove arrow on the right
                                 NavigationLink(
                                     destination: PrayerEditView(
@@ -131,25 +110,20 @@ struct PrayerListView: View {
                             }
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
-                            // Tap on a prayer card to dismiss keyboard if it's up
-                            .onTapGesture {
-                                searchIsFocused = false
-                            }
                         }
                         .onMove(perform: movePrayer)
                     }
                     .listStyle(.plain)
-                    // iOS 16+: Scroll dismissal for the keyboard
-                    .scrollDismissesKeyboard(.interactively)
                     .scrollContentBackground(.hidden)
+                    .background(Color(uiColor: .systemGroupedBackground))
                 }
             }
             .navigationBarHidden(true)
             .onAppear {
                 // Provide the context to the manager & force a fetch
                 searchManager.setContext(viewContext)
-                
-                // Optional: focus on the search bar automatically
+
+                // Optional: Focus on the search bar automatically
                 DispatchQueue.main.async {
                     searchIsFocused = true
                 }
@@ -174,15 +148,15 @@ extension PrayerListView {
         }
         updateReorderablePrayers()
     }
-    
+
     private var isTagExactMatch: Bool {
         let trimmed = searchManager.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
-        
+
         let fetchReq: NSFetchRequest<TagEntity> = TagEntity.fetchRequest()
         fetchReq.predicate = NSPredicate(format: "tag == %@", trimmed)
         fetchReq.fetchLimit = 1
-        
+
         do {
             let results = try viewContext.fetch(fetchReq)
             return !results.isEmpty
@@ -191,11 +165,10 @@ extension PrayerListView {
             return false
         }
     }
-    
+
     private func updateReorderablePrayers() {
-        // Filter the manager's results by the selected filter statuses
         let matching = searchManager.filteredPrayers
-        
+
         reorderablePrayers = matching.filter { prayer in
             guard let requestSet = prayer.requests as? Set<RequestEntity>, !requestSet.isEmpty else {
                 return true
@@ -209,22 +182,22 @@ extension PrayerListView {
             return false
         }
     }
-    
+
     private func movePrayer(from source: IndexSet, to destination: Int) {
         reorderablePrayers.move(fromOffsets: source, toOffset: destination)
-        
+
         if isTagExactMatch {
             let total = reorderablePrayers.count
             for (idx, prayer) in reorderablePrayers.enumerated() {
                 let newOrder = Int16(total - idx)
-                
+
                 if let tagSet = prayer.tags as? Set<TagEntity>,
                    let matchingTag = tagSet.first(where: { $0.tag == searchManager.searchText }) {
-                    
+
                     matchingTag.order = newOrder
                     matchingTag.lastModifiedDate = Date()
                 }
-                
+
                 prayer.lastModifiedDate = Date()
             }
             do {
@@ -233,6 +206,22 @@ extension PrayerListView {
                 print("Error saving after reorder: \(error)")
             }
             searchManager.refresh()
+        }
+    }
+}
+
+enum FilterStatus: String, CaseIterable {
+    case waiting   = "Waiting"
+    case fulfilled = "Fulfilled"
+    case rejected  = "Rejected"
+    case unknown   = "?"
+
+    var color: Color {
+        switch self {
+        case .waiting:   return .yellow
+        case .fulfilled: return .green
+        case .rejected:  return .red
+        case .unknown:   return .gray
         }
     }
 }

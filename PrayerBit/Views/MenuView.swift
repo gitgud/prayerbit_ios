@@ -35,8 +35,10 @@ struct MenuView: View {
             
             Spacer()
         }
-        .padding(.vertical, 8)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        // 1) Make background gray
+        .background(Color.gray)
+        // 2) Reduce vertical padding from 8 to 6 (~25% smaller)
+        .padding(.vertical, 6)
     }
 }
 
