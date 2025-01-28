@@ -238,7 +238,7 @@ extension PrayerEditView {
     private func addNewPassage() {
         let newPassage = PassageEntity(context: viewContext)
         newPassage.id = UUID()
-        newPassage.passage = "New Passage"
+        newPassage.passage = ""
         newPassage.creationDate = Date()
         newPassage.lastModifiedDate = Date()
         newPassage.prayer = prayer
@@ -300,7 +300,7 @@ extension PrayerEditView {
     private func addNewRequest() {
         let newRequest = RequestEntity(context: viewContext)
         newRequest.id = UUID()
-        newRequest.request = "New Request"
+        newRequest.request = ""
         newRequest.creationDate = Date()
         newRequest.lastModifiedDate = Date()
         newRequest.prayer = prayer
@@ -348,7 +348,7 @@ extension PrayerEditView {
     private func addNewTag() {
         let newTag = TagEntity(context: viewContext)
         newTag.id = UUID()
-        newTag.tag = "New Tag"
+        newTag.tag = ""
         newTag.lastModifiedDate = Date() // 1) Set Tag's lastModifiedDate
         newTag.prayer = prayer
         
