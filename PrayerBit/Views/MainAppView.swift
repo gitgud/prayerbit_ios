@@ -1,10 +1,3 @@
-//
-//  MainAppView.swift
-//  PrayerBit
-//
-//  Created by kale on 1/6/25.
-//
-
 import SwiftUI
 
 /// The parent container that switches between PrayerListView and AccountView.
@@ -29,24 +22,23 @@ struct MainAppView: View {
             // Show one child or the other
             switch currentScreen {
             case .search:
-                // Pass the bindings down, so we know when a text field is focused
-                // and when we need to hide the menu entirely.
                 PrayerListView(
                     isKeyboardActive: $isKeyboardActive,
                     hideMenu: $hideMenu
                 )
-                
             case .account:
                 AccountView()
             }
             
-            // The custom bottom menu at the very bottom
-            // Hide it if the user is typing OR if PrayerEditView says to hide it.
+            // The custom bottom menu:
+            // Hide it if the keyboard is active or if a child view says to hide it.
             if !isKeyboardActive && !hideMenu {
                 MenuView(
                     onSearchTapped: { currentScreen = .search },
                     onAccountTapped: { currentScreen = .account }
                 )
+                // Force it to the bottom:
+                .ignoresSafeArea(edges: .bottom)
             }
         }
     }

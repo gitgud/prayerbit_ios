@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MenuView: View {
-    // Two closures that the parent view will pass in
+    // Two closures passed in from the parent
     let onSearchTapped: () -> Void
     let onAccountTapped: () -> Void
     
@@ -9,7 +9,7 @@ struct MenuView: View {
         HStack {
             Spacer()
             
-            // Search item
+            // Search
             VStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")
                     .font(.title2)
@@ -22,7 +22,7 @@ struct MenuView: View {
             
             Spacer()
             
-            // Account item
+            // Account
             VStack(spacing: 4) {
                 Image(systemName: "person.circle")
                     .font(.title2)
@@ -35,14 +35,13 @@ struct MenuView: View {
             
             Spacer()
         }
-        // 1) Make background gray
         .background(Color.gray)
-        // 2) Reduce vertical padding from 8 to 6 (~25% smaller)
-        .padding(.vertical, 6)
+        // Remove the vertical padding to bring it flush to the bottom
+        .padding(.vertical, 0)
     }
 }
 
-// Optional Preview
+// Preview
 struct MenuView_Previews: PreviewProvider {
     static var previews: some View {
         MenuView(
