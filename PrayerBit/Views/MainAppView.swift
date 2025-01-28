@@ -1,15 +1,8 @@
 import SwiftUI
 
-/// The parent container that switches between PrayerListView and AccountView.
-/// It also shows the custom bottom menu (MenuView).
 struct MainAppView: View {
-    // Tracks which screen is active
     @State private var currentScreen: Screen = .search
-    
-    // Tracks if the keyboard/text field is active (focused)
     @State private var isKeyboardActive: Bool = false
-    
-    // Whether or not to hide the bottom menu (used by PrayerEditView)
     @State private var hideMenu: Bool = false
     
     enum Screen {
@@ -19,7 +12,6 @@ struct MainAppView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Show one child or the other
             switch currentScreen {
             case .search:
                 PrayerListView(
@@ -30,15 +22,15 @@ struct MainAppView: View {
                 AccountView()
             }
             
-            // The custom bottom menu:
-            // Hide it if the keyboard is active or if a child view says to hide it.
+            // If not typing and not hidden, show the menu
             if !isKeyboardActive && !hideMenu {
                 MenuView(
                     onSearchTapped: { currentScreen = .search },
                     onAccountTapped: { currentScreen = .account }
                 )
-                // Force it to the bottom:
+                // Pin to the bottom and push even further (if you like)
                 .ignoresSafeArea(edges: .bottom)
+                .padding(.bottom, -10) // Adjust this negative value as needed
             }
         }
     }
