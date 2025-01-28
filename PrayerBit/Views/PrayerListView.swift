@@ -5,8 +5,26 @@
 //  Created by kale on 12/25/24.
 //
 
+
 import SwiftUI
 import CoreData
+
+// MARK: - FilterStatus Enum
+enum FilterStatus: String, CaseIterable {
+    case waiting   = "Waiting"
+    case fulfilled = "Fulfilled"
+    case rejected  = "Rejected"
+    case unknown   = "?"
+    
+    var color: Color {
+        switch self {
+        case .waiting:   return .yellow
+        case .fulfilled: return .green
+        case .rejected:  return .red
+        case .unknown:   return .gray
+        }
+    }
+}
 
 struct PrayerListView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -17,7 +35,7 @@ struct PrayerListView: View {
     // We store a local copy of the prayers for drag-to-reorder
     @State private var reorderablePrayers: [PrayerEntity] = []
     
-    // Whether the search field is focused
+    // Whether the search field is focused. Setting this to false dismisses the keyboard.
     @FocusState private var searchIsFocused: Bool
     
     // A set of statuses (so multiple can be selected). "Waiting" is selected by default.
@@ -32,9 +50,13 @@ struct PrayerListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Gray background behind everything
+                // Background that dismisses keyboard upon tap
                 Color(uiColor: .systemGroupedBackground)
                     .edgesIgnoringSafeArea(.all)
+                    .contentShape(Rectangle())  // Allows tap detection on empty space
+                    .onTapGesture {
+                        searchIsFocused = false
+                    }
                 
                 VStack(spacing: 0) {
                     
@@ -44,7 +66,7 @@ struct PrayerListView: View {
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .frame(maxWidth: .infinity)
                             .focused($searchIsFocused)
-                            // Whenever search focus changes, update isKeyboardActive.
+                            // Keep track of whether the keyboard is up
                             .onChange(of: searchIsFocused) { newValue in
                                 isKeyboardActive = newValue
                             }
@@ -65,7 +87,6 @@ struct PrayerListView: View {
                                 toggleFilter(filter)
                             } label: {
                                 Text(filter.rawValue)
-                                    // Bold if selected
                                     .fontWeight(selectedFilters.contains(filter) ? .bold : .regular)
                                     .foregroundColor(.white)
                                     .font(.callout)
@@ -110,12 +131,17 @@ struct PrayerListView: View {
                             }
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
+                            // Tap on a prayer card to dismiss keyboard if it's up
+                            .onTapGesture {
+                                searchIsFocused = false
+                            }
                         }
                         .onMove(perform: movePrayer)
                     }
                     .listStyle(.plain)
+                    // iOS 16+: Scroll dismissal for the keyboard
+                    .scrollDismissesKeyboard(.interactively)
                     .scrollContentBackground(.hidden)
-                    .background(Color(uiColor: .systemGroupedBackground))
                 }
             }
             .navigationBarHidden(true)
@@ -123,7 +149,7 @@ struct PrayerListView: View {
                 // Provide the context to the manager & force a fetch
                 searchManager.setContext(viewContext)
                 
-                // Optional: Focus on the search bar automatically
+                // Optional: focus on the search bar automatically
                 DispatchQueue.main.async {
                     searchIsFocused = true
                 }
@@ -167,6 +193,7 @@ extension PrayerListView {
     }
     
     private func updateReorderablePrayers() {
+        // Filter the manager's results by the selected filter statuses
         let matching = searchManager.filteredPrayers
         
         reorderablePrayers = matching.filter { prayer in
@@ -206,22 +233,6 @@ extension PrayerListView {
                 print("Error saving after reorder: \(error)")
             }
             searchManager.refresh()
-        }
-    }
-}
-
-enum FilterStatus: String, CaseIterable {
-    case waiting   = "Waiting"
-    case fulfilled = "Fulfilled"
-    case rejected  = "Rejected"
-    case unknown   = "?"
-    
-    var color: Color {
-        switch self {
-        case .waiting:   return .yellow
-        case .fulfilled: return .green
-        case .rejected:  return .red
-        case .unknown:   return .gray
         }
     }
 }
