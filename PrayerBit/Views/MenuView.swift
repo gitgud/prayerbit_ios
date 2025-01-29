@@ -30,7 +30,8 @@ struct MenuView: View {
             Spacer()
         }
         .background(Color.gray)
-        .padding(.vertical, 0) // No extra vertical padding
+        .padding(.vertical, 4)
+        .background(Color.gray)// No extra vertical padding
     }
 }
 
