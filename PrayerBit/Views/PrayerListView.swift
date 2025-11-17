@@ -5,81 +5,83 @@
 //  Created by kale on 12/25/24.
 //
 
-//
-//  PrayerListView.swift
-//  PrayerBit
-//
-//  Created by kale on 12/25/24.
-//
-
 import SwiftUI
 import CoreData
 
 struct PrayerListView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
-    // Our custom manager that holds the search text and the resulting array
+    // Search manager
     @StateObject private var searchManager = PrayerSearchManager()
 
-    // We store a local copy of the prayers for drag-to-reorder
+    // Local copy of prayers used for the List + reordering
     @State private var reorderablePrayers: [PrayerEntity] = []
 
     // Whether the search field is focused
     @FocusState private var searchIsFocused: Bool
 
-    // A set of statuses (so multiple can be selected). "Waiting" is selected by default.
+    // Status filters (multiple can be active). Waiting is default.
     @State private var selectedFilters: Set<FilterStatus> = [.waiting]
 
-    // Binding passed from MainAppView that tells us whether the keyboard is up
+    // From MainAppView
     @Binding var isKeyboardActive: Bool
-
-    // Binding that tells us whether or not to hide the bottom menu
     @Binding var hideMenu: Bool
+
+    init(isKeyboardActive: Binding<Bool>, hideMenu: Binding<Bool>) {
+        self._isKeyboardActive = isKeyboardActive
+        self._hideMenu = hideMenu
+    }
 
     var body: some View {
         NavigationView {
             ZStack {
-                // Gray background behind everything
                 Color(uiColor: .systemGroupedBackground)
-                    .edgesIgnoringSafeArea(.all)
+                    .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-
-                    // MARK: - Top Search Bar + Plus Button
+                    // Header
                     HStack {
-                        TextField("Search...", text: $searchManager.searchText)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .frame(maxWidth: .infinity)
-                            .focused($searchIsFocused)
-                            // Whenever search focus changes, update isKeyboardActive.
-                            .onChange(of: searchIsFocused) { newValue in
-                                isKeyboardActive = newValue
-                            }
-
+                        Text("Search")
+                            .font(.title)
+                            .bold()
+                        Spacer()
                         NavigationLink(destination: PrayerCreateView()) {
                             Image(systemName: "plus")
                                 .font(.title2)
-                                .padding(.horizontal, 8)
                         }
                     }
                     .padding()
                     .background(Color(uiColor: .systemGroupedBackground))
 
-                    // MARK: - Filter Buttons
+                    // Search box
+                    HStack {
+                        TextField(
+                            "Search...",
+                            text: Binding(
+                                get: { searchManager.searchText },
+                                set: { searchManager.searchText = $0 }
+                            )
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .focused($searchIsFocused)
+                    }
+                    .padding(.horizontal)
+
+                    // Filter buttons
                     HStack(spacing: 4) {
                         ForEach(FilterStatus.allCases, id: \.self) { filter in
                             Button {
                                 toggleFilter(filter)
                             } label: {
                                 Text(filter.rawValue)
-                                    // Bold if selected
                                     .fontWeight(selectedFilters.contains(filter) ? .bold : .regular)
                                     .foregroundColor(.white)
-                                    .font(.callout)
-                                    .padding(.vertical, 8)
-                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 12)
                                     .background(
-                                        filter.color.opacity(selectedFilters.contains(filter) ? 1.0 : 0.6)
+                                        filter.color.opacity(
+                                            selectedFilters.contains(filter) ? 1.0 : 0.6
+                                        )
                                     )
                                     .cornerRadius(6)
                             }
@@ -88,23 +90,25 @@ struct PrayerListView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 8)
 
-                    // MARK: - The Prayers List
+                    // List of prayers
                     List {
                         ForEach(reorderablePrayers, id: \.self) { prayer in
                             ZStack {
-                                // The "bubble" styled view
-                                PrayerDetailView(prayer: prayer)
-                                    .padding(1)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .fill(Color(.systemBackground))
-                                            .shadow(color: .black.opacity(0.1),
-                                                    radius: 4, x: 0, y: 2)
-                                    )
-                                    // Reduce vertical padding from 4 to 2
-                                    .padding(.vertical, 0)
+                                // Card content – only show requests that match filters
+                                PrayerDetailView(
+                                    prayer: prayer,
+                                    activeFilterStatuses: selectedFilters
+                                )
+                                .padding(1)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(Color.white)
+                                        .shadow(color: .black.opacity(0.1),
+                                                radius: 4, x: 0, y: 2)
+                                )
+                                .padding(.vertical, 0)
 
-                                // Invisible NavigationLink to remove arrow on the right
+                                // Invisible NavigationLink so tap opens full edit view
                                 NavigationLink(
                                     destination: PrayerEditView(
                                         prayer: prayer,
@@ -128,25 +132,25 @@ struct PrayerListView: View {
             }
             .navigationBarHidden(true)
             .onAppear {
-                // Provide the context to the manager & force a fetch
+                // Give the manager a context once
                 searchManager.setContext(viewContext)
-                
-                // Optional: Focus on the search bar automatically
+
+                // Optionally focus the search bar
                 DispatchQueue.main.async {
-                    searchIsFocused = true
+                    searchIsFocused = false
                 }
-            }
-            .onChange(of: searchManager.filteredPrayers) { _ in
+
                 updateReorderablePrayers()
             }
-            .onAppear {
+            .onChange(of: searchManager.filteredPrayers) { _ in
                 updateReorderablePrayers()
             }
         }
     }
 }
 
-// MARK: - Private Helpers
+// MARK: - Helpers
+
 extension PrayerListView {
     private func toggleFilter(_ filter: FilterStatus) {
         if selectedFilters.contains(filter) {
@@ -157,66 +161,43 @@ extension PrayerListView {
         updateReorderablePrayers()
     }
 
-    private var isTagExactMatch: Bool {
-        let trimmed = searchManager.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-
-        let fetchReq: NSFetchRequest<TagEntity> = TagEntity.fetchRequest()
-        fetchReq.predicate = NSPredicate(format: "tag == %@", trimmed)
-        fetchReq.fetchLimit = 1
-
-        do {
-            let results = try viewContext.fetch(fetchReq)
-            return !results.isEmpty
-        } catch {
-            print("Error checking exact tag match: \(error)")
-            return false
-        }
+    private func movePrayer(from source: IndexSet, to destination: Int) {
+        // Local reorder only – keeps UI happy without touching Core Data.
+        var updated = reorderablePrayers
+        updated.move(fromOffsets: source, toOffset: destination)
+        reorderablePrayers = updated
     }
 
     private func updateReorderablePrayers() {
+        // Base set from search manager
         let matching = searchManager.filteredPrayers
 
-        reorderablePrayers = matching.filter { prayer in
-            guard let requestSet = prayer.requests as? Set<RequestEntity>, !requestSet.isEmpty else {
+        // Filter by selected request statuses
+        let filteredByStatus = matching.filter { prayer in
+            guard let requestSet = prayer.requests as? Set<RequestEntity>,
+                  !requestSet.isEmpty
+            else {
+                // If no requests, keep the prayer regardless
                 return true
             }
-            for req in requestSet {
-                if let reqStatus = req.status,
-                   selectedFilters.map(\.rawValue).contains(reqStatus) {
-                    return true
+
+            // Does this prayer have at least one request whose status
+            // is in the selected filter set?
+            let allowedStatuses = Set(selectedFilters.map(\.rawValue))
+            return requestSet.contains { req in
+                if let status = req.status {
+                    return allowedStatuses.contains(status)
+                } else {
+                    return false
                 }
             }
-            return false
         }
-    }
 
-    private func movePrayer(from source: IndexSet, to destination: Int) {
-        reorderablePrayers.move(fromOffsets: source, toOffset: destination)
-
-        if isTagExactMatch {
-            let total = reorderablePrayers.count
-            for (idx, prayer) in reorderablePrayers.enumerated() {
-                let newOrder = Int16(total - idx)
-
-                if let tagSet = prayer.tags as? Set<TagEntity>,
-                   let matchingTag = tagSet.first(where: { $0.tag == searchManager.searchText }) {
-
-                    matchingTag.order = newOrder
-                    matchingTag.lastModifiedDate = Date()
-                }
-
-                prayer.lastModifiedDate = Date()
-            }
-            do {
-                try viewContext.save()
-            } catch {
-                print("Error saving after reorder: \(error)")
-            }
-            searchManager.refresh()
-        }
+        reorderablePrayers = filteredByStatus
     }
 }
+
+// MARK: - FilterStatus
 
 enum FilterStatus: String, CaseIterable {
     case waiting   = "Waiting"

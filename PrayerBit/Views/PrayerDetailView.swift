@@ -11,48 +11,68 @@ import CoreData
 struct PrayerDetailView: View {
     @ObservedObject var prayer: PrayerEntity
 
+    /// Optional filter set coming from the list screen.
+    /// If `nil` or empty we show *all* requests.
+    var activeFilterStatuses: Set<FilterStatus>? = nil
+
     // Requests
     @FetchRequest private var requests: FetchedResults<RequestEntity>
     // Passages
     @FetchRequest private var passages: FetchedResults<PassageEntity>
-    // Tags (now one-to-many from Prayer to Tag)
+    // Tags
     @FetchRequest private var tags: FetchedResults<TagEntity>
 
-    init(prayer: PrayerEntity) {
+    init(prayer: PrayerEntity, activeFilterStatuses: Set<FilterStatus>? = nil) {
         self.prayer = prayer
-        
-        // Filter: "prayer == current prayer" for requests
-        let predicateRequests = NSPredicate(format: "prayer == %@", prayer)
+        self.activeFilterStatuses = activeFilterStatuses
+
+        let basePredicate = NSPredicate(format: "prayer == %@", prayer)
+
+        // Requests: respect filters if provided, otherwise show all
+        let predicateRequests: NSPredicate
+        if let filters = activeFilterStatuses, !filters.isEmpty {
+            let rawStatuses = filters.map(\.rawValue)
+            let statusPredicate = NSPredicate(format: "status IN %@", rawStatuses)
+            predicateRequests = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                basePredicate,
+                statusPredicate
+            ])
+        } else {
+            predicateRequests = basePredicate
+        }
+
         _requests = FetchRequest<RequestEntity>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \RequestEntity.lastModifiedDate, ascending: false)],
+            sortDescriptors: [
+                NSSortDescriptor(keyPath: \RequestEntity.lastModifiedDate, ascending: false)
+            ],
             predicate: predicateRequests,
             animation: .default
         )
 
-        // Filter: "prayer == current prayer" for passages
-        let predicatePassages = NSPredicate(format: "prayer == %@", prayer)
         _passages = FetchRequest<PassageEntity>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \PassageEntity.lastModifiedDate, ascending: false)],
-            predicate: predicatePassages,
+            sortDescriptors: [
+                NSSortDescriptor(keyPath: \PassageEntity.lastModifiedDate, ascending: false)
+            ],
+            predicate: basePredicate,
             animation: .default
         )
 
-        // For Tags in a one-to-many: "prayer == %@", prayer
-        let predicateTags = NSPredicate(format: "prayer == %@", prayer)
         _tags = FetchRequest<TagEntity>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \TagEntity.tag, ascending: true)],
-            predicate: predicateTags,
+            sortDescriptors: [
+                NSSortDescriptor(keyPath: \TagEntity.tag, ascending: true)
+            ],
+            predicate: basePredicate,
             animation: .default
         )
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // MARK: - Prayer Title
+            // Title
             Text(prayer.title ?? "")
                 .font(.headline)
-            
-            // MARK: - Passages Section
+
+            // Passages
             if !passages.isEmpty {
                 Divider()
                 ForEach(passages, id: \.self) { passage in
@@ -60,11 +80,10 @@ struct PrayerDetailView: View {
                 }
             }
 
-            // MARK: - Requests Section
+            // Requests
             if !requests.isEmpty {
                 Divider()
                 ForEach(requests, id: \.self) { request in
-                    // Bullet points for each Request
                     HStack(alignment: .top) {
                         Text("•")
                             .padding(.trailing, 4)
@@ -73,7 +92,7 @@ struct PrayerDetailView: View {
                 }
             }
 
-            // MARK: - Tags Section
+            // Tags
             if !tags.isEmpty {
                 Divider()
                 HStack {
@@ -89,4 +108,3 @@ struct PrayerDetailView: View {
         .navigationTitle("Prayer Details")
     }
 }
-
