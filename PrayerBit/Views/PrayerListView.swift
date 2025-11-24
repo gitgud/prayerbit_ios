@@ -53,8 +53,13 @@ struct PrayerListView: View {
                     .padding()
                     .background(Color(uiColor: .systemGroupedBackground))
 
-                    // Search box
-                    HStack {
+                    // Combined search bar with inline status filter buttons
+                    HStack(spacing: 8) {
+                        // Magnifying glass icon on the left
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+
+                        // Search text field bound to the search manager
                         TextField(
                             "Search...",
                             text: Binding(
@@ -62,31 +67,50 @@ struct PrayerListView: View {
                                 set: { searchManager.searchText = $0 }
                             )
                         )
-                        .textFieldStyle(.roundedBorder)
                         .focused($searchIsFocused)
-                    }
-                    .padding(.horizontal)
 
-                    // Filter buttons
-                    HStack(spacing: 4) {
-                        ForEach(FilterStatus.allCases, id: \.self) { filter in
-                            Button {
-                                toggleFilter(filter)
-                            } label: {
-                                Text(filter.rawValue)
-                                    .fontWeight(selectedFilters.contains(filter) ? .bold : .regular)
-                                    .foregroundColor(.white)
-                                    .padding(.vertical, 6)
-                                    .padding(.horizontal, 12)
-                                    .background(
-                                        filter.color.opacity(
-                                            selectedFilters.contains(filter) ? 1.0 : 0.6
+                        // Spacer to push filter buttons to the right.
+                        // Increase minLength so the filter buttons sit slightly more to the right.
+                        Spacer(minLength: 12)
+
+                        // Inline filter buttons
+                        HStack(spacing: 4) {
+                            ForEach(FilterStatus.allCases, id: \.self) { filter in
+                                Button {
+                                    toggleFilter(filter)
+                                } label: {
+                                    Text(filter.rawValue)
+                                        .font(.system(size: 18))
+                                        .frame(width: 32, height: 32)
+                                        .background(
+                                            filter.color.opacity(
+                                                selectedFilters.contains(filter) ? 1.0 : 0.6
+                                            )
                                         )
-                                    )
-                                    .cornerRadius(6)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                        // Outline the button with a black stroke when selected
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.black, lineWidth: selectedFilters.contains(filter) ? 2 : 0)
+                                        )
+                                }
                             }
                         }
                     }
+                    // Style the search bar container
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            // Use a very light gray fill similar to the example search bar
+                            .fill(Color(uiColor: .systemGray6))
+                    )
+                    // Add a subtle border to match the container style
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color(uiColor: .separator), lineWidth: 1)
+                    )
                     .padding(.horizontal)
                     .padding(.bottom, 8)
 
@@ -132,10 +156,10 @@ struct PrayerListView: View {
             }
             .navigationBarHidden(true)
             .onAppear {
-                // Give the manager a context once
+                // Provide the context to the manager once
                 searchManager.setContext(viewContext)
 
-                // Optionally focus the search bar
+                // Optional: don’t auto-focus
                 DispatchQueue.main.async {
                     searchIsFocused = false
                 }
@@ -183,7 +207,7 @@ extension PrayerListView {
 
             // Does this prayer have at least one request whose status
             // is in the selected filter set?
-            let allowedStatuses = Set(selectedFilters.map(\.rawValue))
+            let allowedStatuses = Set(selectedFilters.map(\.coreDataRaw))
             return requestSet.contains { req in
                 if let status = req.status {
                     return allowedStatuses.contains(status)
@@ -197,14 +221,13 @@ extension PrayerListView {
     }
 }
 
-// MARK: - FilterStatus
-
 enum FilterStatus: String, CaseIterable {
-    case waiting   = "Waiting"
-    case fulfilled = "Fulfilled"
-    case rejected  = "Rejected"
-    case unknown   = "?"
+    case waiting   = "⏳"
+    case fulfilled = "✔️"
+    case rejected  = "✘"
+    case unknown   = "🤷‍♂️"   // male shrug
 
+    /// Button background color
     var color: Color {
         switch self {
         case .waiting:   return .yellow
@@ -213,4 +236,15 @@ enum FilterStatus: String, CaseIterable {
         case .unknown:   return .gray
         }
     }
+
+    /// The value stored in Core Data's `status` field
+    var coreDataRaw: String {
+        switch self {
+        case .waiting:   return "Waiting"
+        case .fulfilled: return "Fulfilled"
+        case .rejected:  return "Rejected"
+        case .unknown:   return "Unknown"
+        }
+    }
 }
+

@@ -31,7 +31,8 @@ struct PrayerDetailView: View {
         // Requests: respect filters if provided, otherwise show all
         let predicateRequests: NSPredicate
         if let filters = activeFilterStatuses, !filters.isEmpty {
-            let rawStatuses = filters.map(\.rawValue)
+            // Use coreDataRaw so we still match "Fulfilled"/"Rejected"/etc in Core Data
+            let rawStatuses = filters.map(\.coreDataRaw)
             let statusPredicate = NSPredicate(format: "status IN %@", rawStatuses)
             predicateRequests = NSCompoundPredicate(andPredicateWithSubpredicates: [
                 basePredicate,
